@@ -98,6 +98,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             return [...new Set([...base.filter((id) => recordIds.has(id)), ...newlyAddedIds])]
           })
           setGeoLayers(records)
+          setSelectedGeoFeature((selected) => selected && records.some((layer) => layer.id === selected.layer.id) ? selected : null)
         }
       } catch (error) {
         if (active) notify(error instanceof Error ? '地理データを読み込めませんでした: ' + error.message : '地理データを読み込めませんでした。')
