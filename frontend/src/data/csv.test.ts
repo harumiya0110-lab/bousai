@@ -14,7 +14,7 @@ describe('CSV import', () => {
   })
 
   it('UTF-8の文字コードを判定する', () => {
-    const bytes = new TextEncoder().encode('名称,経度,緯度\\n学校,132.5,33.2')
+    const bytes = new TextEncoder().encode('名称,経度,緯度\n学校,132.5,33.2')
     const decoded = decodeCsvBytes(bytes.buffer)
     expect(decoded.encoding).toBe('UTF-8')
     expect(decoded.text).toContain('学校')
