@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { formatByteSize, parseGeoJsonText } from './geojson'
 
 describe('GeoJSON validation', () => {
+  it('UTF-8 BOM付きGeoJSONを読み込める', () => {
+    const result = parseGeoJsonText('\\uFEFF' + JSON.stringify({
+      type: 'Feature',
+      properties: { name: 'BOM test' },
+      geometry: { type: 'Point', coordinates: [132.5, 33.2] },
+    }))
+    expect(result.featureCount).toBe(1)
+    expect(result.propertyKeys).toContain('name')
+  })
+
   it('FeatureCollectionの座標・属性・範囲を集計する', () => {
     const input = JSON.stringify({
       type: 'FeatureCollection',
