@@ -230,12 +230,20 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             </div>
           )}
           <div className="layer-legend">
-            <div className="legend-heading"><span>表示の凡例</span><CircleHelp size={13} /></div>
-            <div><i className="legend-swatch terrain-swatch" />標高色（仮想）</div>
-            <div><i className="legend-swatch flood-swatch" />洪水表示（教育用仮想）</div>
-            <div><i className="legend-swatch shelter-swatch" />仮想避難施設</div>
+            <div className="legend-heading"><span>{showImportedLayers ? 'インポートデータの凡例' : '表示の凡例'}</span><CircleHelp size={13} /></div>
+            {showImportedLayers ? (
+              [...new Set(visibleGeoLayers.map((layer) => layer.category))].map((category) => (
+                <div key={category}><i className={"legend-swatch geo-swatch-" + category} />{GEO_CATEGORY_LABELS[category]}</div>
+              ))
+            ) : (
+              <>
+                <div><i className="legend-swatch terrain-swatch" />標高色（仮想）</div>
+                <div><i className="legend-swatch flood-swatch" />洪水表示（教育用仮想）</div>
+                <div><i className="legend-swatch shelter-swatch" />仮想避難施設</div>
+              </>
+            )}
           </div>
-          <div className="layer-source-note"><Database size={13} /> 公的データは未取得です</div>
+          <div className="layer-source-note"><Database size={13} /> {showImportedLayers ? '出典・利用条件は各インポートレイヤに記録' : '公的データは未取得です'}</div>
         </aside>
 
         <section className="scene-panel" aria-label="3Dシミュレーション">
