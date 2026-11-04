@@ -24,13 +24,15 @@ import { createExperimentDataUrl, loadExperiments, saveExperiment, type Experime
 import { useAppStore } from './store'
 import './App.css'
 
-type PageId = 'home' | 'simulation' | 'evacuation' | 'analysis' | 'reports'
+type PageId = 'home' | 'simulation' | 'data' | 'evacuation' | 'analysis' | 'reports'
 
 const SimulationPage = lazy(() => import('./components/SimulationPage').then(({ SimulationPage: page }) => ({ default: page })))
+const DataStudioPage = lazy(() => import('./components/DataStudioPage').then(({ DataStudioPage: page }) => ({ default: page })))
 
 const navigation: { id: PageId; label: string; icon: typeof Map }[] = [
   { id: 'home', label: 'ホーム', icon: Map },
   { id: 'simulation', label: '3Dシミュレーション', icon: Mountain },
+  { id: 'data', label: '地理データ管理', icon: Database },
   { id: 'evacuation', label: '避難分析', icon: Route },
   { id: 'analysis', label: 'データ分析', icon: BarChart3 },
   { id: 'reports', label: 'レポート', icon: FileText },
@@ -92,6 +94,7 @@ function App() {
       <main className="main-content">
         {page === 'home' && <HomePage navigate={setPage} openFloodDemo={openFloodDemo} />}
         {page === 'simulation' && <Suspense fallback={<div className="loading-screen" role="status">3Dシミュレーションを準備しています…</div>}><SimulationPage notify={setNotice} onSave={createReport} /></Suspense>}
+        {page === 'data' && <Suspense fallback={<div className="loading-screen" role="status">地理データ管理を準備しています…</div>}><DataStudioPage /></Suspense>}
         {page === 'evacuation' && <StatusPage type="evacuation" navigate={setPage} />}
         {page === 'analysis' && <StatusPage type="analysis" navigate={setPage} />}
         {page === 'reports' && <ReportsPage navigate={setPage} />}
@@ -173,6 +176,12 @@ function HomePage({ navigate, openFloodDemo }: { navigate: (page: PageId) => voi
             <span className="quick-title">3Dシミュレーション</span>
             <span className="quick-description">仮想地形・レイヤ・施設配置を操作</span>
             <span className="quick-action">デモを起動 <ChevronRight size={15} /></span>
+          </button>
+          <button className="quick-card" type="button" onClick={() => navigate('data')}>
+            <span className="quick-icon purple"><Database size={18} /></span>
+            <span className="quick-title">地理データ管理</span>
+            <span className="quick-description">GeoJSONを検証して3D空間に読み込む</span>
+            <span className="quick-action">データを追加 <ChevronRight size={15} /></span>
           </button>
           <button className="quick-card" type="button" onClick={openFloodDemo}>
             <span className="quick-icon amber"><Droplets size={18} /></span>

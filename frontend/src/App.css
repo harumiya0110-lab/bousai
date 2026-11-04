@@ -444,7 +444,7 @@
 .quick-grid {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
   gap: 11px;
 }
 
@@ -2122,5 +2122,155 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* Imported GeoJSON layer indicator and imported-data scene state */
+.imported-layer-toggle {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+.imported-layer-toggle .layer-icon {
+  color: #69d1ef;
+  background: rgba(56, 189, 248, 0.1);
+}
+.imported-layer-toggle .layer-copy small {
+  color: #78bcd2;
+}
+.scene-demo-badge.imported {
+  color: #82d9f2;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.1);
+}
+.scene-demo-badge.imported span {
+  background: #55c4e8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+}
+
+
+.imported-layers-section {
+  display: grid;
+  gap: 3px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+.imported-layers-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 5px;
+  color: #a9c1d2;
+  font-size: 8px;
+  font-weight: 600;
+}
+.imported-layers-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.imported-layers-heading svg { color: #6bcce9; }
+.imported-layers-heading small {
+  color: #6f879b;
+  font-size: 7px;
+  font-weight: 400;
+}
+.imported-layer-toggle {
+  margin-top: 0;
+  padding: 6px 4px;
+  border-top: 0;
+}
+.imported-layer-toggle .layer-copy strong {
+  overflow: hidden;
+  max-width: 145px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imported-layer-toggle .layer-copy small {
+  overflow: hidden;
+  max-width: 145px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imported-layer-toggle .geo-flood { color: #72ccef; background: rgba(56, 189, 248, 0.1); }
+.imported-layer-toggle .geo-shelters { color: #68dca4; background: rgba(66, 207, 136, 0.1); }
+.imported-layer-toggle .geo-roads { color: #efc477; background: rgba(242, 173, 63, 0.1); }
+.imported-layer-toggle .geo-buildings { color: #c4d1dc; background: rgba(148, 163, 184, 0.1); }
+.imported-layer-toggle .geo-other { color: #b8a8ef; background: rgba(177, 156, 240, 0.1); }
+
+
+/* Keep the feature inspector usable when imported records contain many attributes. */
+.detail-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(105, 151, 179, 0.4) transparent;
+}
+
+
+.imported-layer-context {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 18px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(24, 58, 78, 0.58), rgba(18, 35, 54, 0.92));
+}
+.imported-layer-context-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 10px;
+  color: #6bcfea;
+  background: rgba(56, 189, 248, 0.09);
+}
+.imported-layer-context > div:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.imported-layer-context strong {
+  color: #dce9f1;
+  font-size: 11px;
+}
+.imported-layer-context p {
+  margin: 0;
+  color: #91a8ba;
+  font-size: 9px;
+  line-height: 1.7;
+}
+.imported-layer-count {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid rgba(56, 189, 248, 0.19);
+  border-radius: 999px;
+  color: #8bd6ed;
+  background: rgba(56, 189, 248, 0.07);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.geo-swatch-flood { background: #3caee0; }
+.geo-swatch-shelters { background: #56d99a; }
+.geo-swatch-roads { background: #edbd68; }
+.geo-swatch-buildings { background: #c6d5e1; }
+.geo-swatch-other { background: #a9a0f5; }
+
+@media (max-width: 680px) {
+  .imported-layer-context {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 13px;
+  }
+  .imported-layer-count {
+    margin-left: 51px;
   }
 }
