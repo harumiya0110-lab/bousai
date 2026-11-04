@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import {
   AlertCircle, ArrowDownToLine, CheckCircle2, Database, FileJson, FileUp, Info,
   Layers3, Link2, MapPin, RefreshCw, ShieldAlert, Trash2, Upload,
@@ -36,15 +36,15 @@ export function DataStudioPage() {
   const [notice, setNotice] = useState('')
   const [dragging, setDragging] = useState(false)
 
-  const refreshLayers = async () => {
+  const refreshLayers = useCallback(async () => {
     try {
       setLayers(await listGeoLayers())
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : '保存済みレイヤを読み込めませんでした。')
     }
-  }
+  }, [])
 
-  useEffect(() => { void refreshLayers() }, [])
+  useEffect(() => { void refreshLayers() }, [refreshLayers])
 
   const handleFile = async (file?: File) => {
     if (!file) return
@@ -204,7 +204,7 @@ export function DataStudioPage() {
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = layer.fileName ? layer.fileName.replace(/\.(csv|json)$/i, '.geojson') : (layer.id + '.geojson')
+    anchor.download = layer.fileName ? layer.fileName.replace(/\.(csv|geojson|json)$/i, '.geojson') : (layer.id + '.geojson')
     anchor.click()
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
