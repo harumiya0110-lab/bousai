@@ -45,7 +45,11 @@ function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): 
   if (geometry.type === 'Point') {
     if (isPosition(coordinates)) result.points.push(coordinates)
   } else if (geometry.type === 'MultiPoint') {
-    if (Array.isArray(coordinates)) result.points.push(...coordinates.filter(isPosition))
+    if (Array.isArray(coordinates)) {
+      for (const position of coordinates) {
+        if (isPosition(position)) result.points.push(position)
+      }
+    }
   } else if (geometry.type === 'LineString') {
     if (Array.isArray(coordinates) && coordinates.every(isPosition)) result.lines.push(coordinates)
   } else if (geometry.type === 'MultiLineString') {
