@@ -224,19 +224,22 @@ export function parseGeoJsonText(text: string): GeoJsonSummary {
     throw new Error('有効な座標を持つ地物がありません。')
   }
 
-  const longitudes = positions.map((position) => position[0])
-  const latitudes = positions.map((position) => position[1])
+  let west = Infinity
+  let south = Infinity
+  let east = -Infinity
+  let north = -Infinity
+  for (const position of positions) {
+    west = Math.min(west, position[0])
+    south = Math.min(south, position[1])
+    east = Math.max(east, position[0])
+    north = Math.max(north, position[1])
+  }
   return {
     collection,
     featureCount: collection.features.length,
     coordinateCount: positions.length,
     geometryCounts,
-    bounds: {
-      west: Math.min(...longitudes),
-      south: Math.min(...latitudes),
-      east: Math.max(...longitudes),
-      north: Math.max(...latitudes),
-    },
+    bounds: { west, south, east, north },
     propertyKeys: [...propertyKeys].sort().slice(0, 100),
   }
 }
