@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { csvToGeoJson, detectCoordinateColumns, parseCsvText } from './csv'
+import { csvToGeoJson, decodeCsvBytes, detectCoordinateColumns, parseCsvText } from './csv'
 
 describe('CSV import', () => {
   it('BOM付きUTF-8・CRLF・引用符内カンマを処理する', () => {
@@ -11,6 +11,20 @@ describe('CSV import', () => {
   it('引用符内の改行と二重引用符を処理する', () => {
     const table = parseCsvText('name,note,lon,lat\n"避難所","説明 ""重要""\n2行目",132.5,33.2')
     expect(table.rows[0][1]).toBe('説明 "重要"\n2行目')
+  })
+
+  it('UTF-8の文字コードを判定する', () => {
+    const bytes = new TextEncoder().encode('名称,経度,緯度\\n学校,132.5,33.2')
+    const decoded = decodeCsvBytes(bytes.buffer)
+    expect(decoded.encoding).toBe('UTF-8')
+    expect(decoded.text).toContain('学校')
+  })
+
+  it('Shift_JISの日本語CSVを判定してデコードする', () => {
+    const bytes = Uint8Array.from([0x82, 0xa0, 0x2c, 0x31, 0x32, 0x33])
+    const decoded = decodeCsvBytes(bytes.buffer)
+    expect(decoded.encoding).toBe('Shift_JIS')
+    expect(decoded.text).toBe('あ,123')
   })
 
   it('経度・緯度列を日本語と英語の見出しから検出する', () => {
