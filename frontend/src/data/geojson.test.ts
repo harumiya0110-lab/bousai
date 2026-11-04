@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest'
+import { formatByteSize, parseGeoJsonText } from './geojson'
+
+describe('GeoJSON validation', () => {
+  it('FeatureCollectionの座標・属性・範囲を集計する', () => {
+    const input = JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: { name: 'sample road', kind: 'road' },
+        geometry: { type: 'LineString', coordinates: [[132.5, 33.2], [132.6, 33.3]] },
+      }],
+    })
+    const result = parseGeoJsonText(input)
+    expect(result.featureCount).toBe(1)
+    expect(result.coordinateCount).toBe(2)
+    expect(result.bounds.west).toBe(132.5)
+    expect(result.bounds.north).toBe(33.3)
+    expect(result.propertyKeys).toContain('name')
+  })
+
+  it('単一FeatureをFeatureCollectionへ正規化する', () => {
+    const result = parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: null,
+      geometry: { type: 'Point', coordinates: [132.5, 33.2] },
+    }))
+    expect(result.collection.type).toBe('FeatureCollection')
+    expect(result.featureCount).toBe(1)
+  })
+
+  it('不正な座標範囲を拒否する', () => {
+    expect(() => parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'Point', coordinates: [250, 33] },
+    }))).toThrow(/範囲外/)
+  })
+
+  it('不明なCRSを推測せず拒否する', () => {
+    expect(() => parseGeoJsonText(JSON.stringify({
+      type: 'FeatureCollection',
+      crs: { type: 'name', properties: { name: 'EPSG:6677' } },
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [132, 33] } }],
+    }))).toThrow(/座標系/)
+  })
+
+  it('人間が読みやすいファイルサイズを返す', () => {
+    expect(formatByteSize(1536)).toBe('1.5 KB')
+    expect(formatByteSize(2 * 1024 * 1024)).toBe('2.0 MB')
+  })
+})
