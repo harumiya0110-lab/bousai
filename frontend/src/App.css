@@ -2200,3 +2200,12 @@
 .imported-layer-toggle .geo-roads { color: #efc477; background: rgba(242, 173, 63, 0.1); }
 .imported-layer-toggle .geo-buildings { color: #c4d1dc; background: rgba(148, 163, 184, 0.1); }
 .imported-layer-toggle .geo-other { color: #b8a8ef; background: rgba(177, 156, 240, 0.1); }
+
+
+/* Keep the feature inspector usable when imported records contain many attributes. */
+.detail-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(105, 151, 179, 0.4) transparent;
+}
