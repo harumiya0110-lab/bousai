@@ -315,12 +315,25 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             </div>
           )}
           <div className="inspector-divider" />
-          <div className="inspector-meta">
-            <span>対象地域</span><strong>仮想デモ空間</strong>
-            <span>データ更新</span><strong>公的データなし</strong>
-            <span>座標系</span><strong>表示用ローカル座標</strong>
-          </div>
-          <div className="inspector-warning"><Shield size={14} /><span>実際の地理・標高・災害リスクを示すデータは未接続です。</span></div>
+          {selectedGeoFeature ? (
+            <>
+              <div className="inspector-meta">
+                <span>データ提供元</span><strong>{selectedGeoFeature.layer.sourceName || '未入力'}</strong>
+                <span>データ更新</span><strong>{selectedGeoFeature.layer.dataUpdatedAt || '未入力'}</strong>
+                <span>利用条件</span><strong>{selectedGeoFeature.layer.licenseNote || '未確認'}</strong>
+              </div>
+              <div className="inspector-warning"><Shield size={14} /><span>GeoJSONは相対縮尺の平面表示です。浸水深・標高・避難安全性の判定には使用できません。</span></div>
+            </>
+          ) : (
+            <>
+              <div className="inspector-meta">
+                <span>対象地域</span><strong>仮想デモ空間</strong>
+                <span>データ更新</span><strong>公的データなし</strong>
+                <span>座標系</span><strong>表示用ローカル座標</strong>
+              </div>
+              <div className="inspector-warning"><Shield size={14} /><span>実際の地理・標高・災害リスクを示すデータは未接続です。</span></div>
+            </>
+          )}
         </aside>
       </div>
 
@@ -365,6 +378,73 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
       </div>
 
       <div className="simulation-caveat"><Shield size={13} /><span>{showImportedLayers && geoLayers.length > 0 ? '読み込んだGeoJSONの地物を相対縮尺の平面として表示しています。実測標高へのドレープや災害リスク判定は行いません。出典・利用条件を確認してください。' : DEMO_ONLY_WARNING}</span><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">公式情報 <ChevronDown size={12} /></a></div>
+    </div>
+  )
+}
+
+function GeoFeatureDetails({ layer, feature }: {
+  layer: GeoLayerRecord
+  feature: GeoJsonFeature
+}) {
+  const properties = feature.properties ?? {}
+  const preferredNameKeys = ['name', '名称', '施設名', '施設名称', '地点名', '名称_1']
+  const titleKey = preferredNameKeys.find((key) => {
+    const value = properties[key]
+    return value !== null && value !== undefined && String(value).trim().length > 0
+  })
+  const titleValue = titleKey ? properties[titleKey] : null
+  const title = titleValue === null || titleValue === undefined
+    ? '選択した地物'
+    : String(titleValue)
+  const entries = Object.entries(properties).slice(0, 16)
+
+  const formatValue = (value: unknown): string => {
+    if (value === null || value === undefined || value === '') return '—'
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value).slice(0, 180)
+      } catch {
+        return '[表示できない値]'
+      }
+    }
+    return String(value).slice(0, 180)
+  }
+
+  return (
+    <div className="location-details geo-feature-details">
+      <span className="selection-tag imported-tag"><span /> インポートデータ</span>
+      <h2>{title}</h2>
+      <div className="coordinate-readout"><Database size={14} /> {layer.name}</div>
+      <div className="detail-data-grid">
+        <div><span>データ分類</span><strong>{GEO_CATEGORY_LABELS[layer.category]}</strong></div>
+        <div><span>形状</span><strong>{feature.geometry?.type ?? 'なし'}</strong></div>
+        <div><span>地物ID</span><strong>{feature.id === undefined ? '未設定' : String(feature.id)}</strong></div>
+        <div><span>座標系</span><strong>WGS84 / 経度・緯度</strong></div>
+      </div>
+      <div className="geo-feature-source">
+        <span>出典：{layer.sourceName || '未入力'}</span>
+        <span>データ更新日：{layer.dataUpdatedAt || '未入力'}</span>
+        <span>利用条件：{layer.licenseNote || '未確認'}</span>
+      </div>
+      <div className="geo-feature-properties">
+        <strong>属性情報</strong>
+        {entries.length === 0 ? (
+          <p>この地物に属性情報はありません。</p>
+        ) : (
+          <dl>
+            {entries.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd title={formatValue(value)}>{formatValue(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {Object.keys(properties).length > entries.length && (
+          <small>ほか {Object.keys(properties).length - entries.length} 項目は詳細表示を省略しています。</small>
+        )}
+      </div>
+      <p className="detail-note">表示位置は対象データの範囲に合わせた相対縮尺です。実測標高へのドレープや災害リスクの判定は行っていません。</p>
     </div>
   )
 }
