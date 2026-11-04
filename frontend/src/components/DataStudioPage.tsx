@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import {
   AlertCircle, ArrowDownToLine, CheckCircle2, Database, FileJson, FileUp, Info,
-  Layers3, Link2, MapPin, RefreshCw, ShieldAlert, Trash2, Upload,
+  Layers3, Link2, MapPin, RefreshCw, ShieldAlert, Trash2, Upload, Waves,
 } from 'lucide-react'
 import { deleteGeoLayer, listGeoLayers, saveGeoLayer } from '../data/geoStore'
 import { csvToGeoJson, decodeCsvBytes, detectCoordinateColumns, parseCsvText, type CsvEncoding, type CsvTable } from '../data/csv'
