@@ -362,6 +362,17 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
         </aside>
       </div>
 
+      {showImportedLayers ? (
+        <section className="imported-layer-context">
+          <div className="imported-layer-context-icon"><Database size={19} /></div>
+          <div>
+            <span className="section-kicker">IMPORTED GEOJSON VIEW</span>
+            <strong>インポートした地理データを表示中</strong>
+            <p>この表示中は、仮想洪水シナリオと仮想防災施設の配置操作を一時停止しています。左のレイヤ一覧から表示対象を切り替えるか、すべて非表示にすると仮想デモへ戻ります。</p>
+          </div>
+          <span className="imported-layer-count">{visibleGeoLayers.length} レイヤ</span>
+        </section>
+      ) : (
       <div className="simulation-bottom">
         <section className="timeline-panel">
           <div className="timeline-heading">
@@ -401,6 +412,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
           <p>施設は仮想・未設置です。実際の施設・避難能力を示しません。</p>
         </section>
       </div>
+      )}
 
       <div className="simulation-caveat"><Shield size={13} /><span>{showImportedLayers && geoLayers.length > 0 ? '読み込んだGeoJSONの地物を相対縮尺の平面として表示しています。実測標高へのドレープや災害リスク判定は行いません。出典・利用条件を確認してください。' : DEMO_ONLY_WARNING}</span><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">公式情報 <ChevronDown size={12} /></a></div>
     </div>
