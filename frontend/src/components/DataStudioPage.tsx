@@ -4,7 +4,7 @@ import {
   Layers3, Link2, MapPin, RefreshCw, ShieldAlert, Trash2, Upload,
 } from 'lucide-react'
 import { deleteGeoLayer, listGeoLayers, saveGeoLayer } from '../data/geoStore'
-import { csvToGeoJson, detectCoordinateColumns, parseCsvText, type CsvTable } from '../data/csv'
+import { csvToGeoJson, decodeCsvBytes, detectCoordinateColumns, parseCsvText, type CsvEncoding, type CsvTable } from '../data/csv'
 import {
   formatByteSize, GEO_CATEGORY_LABELS, MAX_GEOJSON_BYTES, MAX_TOTAL_GEOJSON_BYTES, parseGeoJsonText,
   type GeoJsonSummary, type GeoLayerCategory, type GeoLayerRecord,
@@ -22,6 +22,7 @@ export function DataStudioPage() {
   const [csvLatitudeColumn, setCsvLatitudeColumn] = useState('')
   const [csvCrsReviewed, setCsvCrsReviewed] = useState(false)
   const [csvSkippedRows, setCsvSkippedRows] = useState(0)
+  const [csvEncoding, setCsvEncoding] = useState<CsvEncoding>('UTF-8')
   const [fileName, setFileName] = useState('')
   const [fileSize, setFileSize] = useState(0)
   const [layerName, setLayerName] = useState('')
@@ -54,6 +55,7 @@ export function DataStudioPage() {
     setCsvTable(null)
     setCsvCrsReviewed(false)
     setCsvSkippedRows(0)
+    setCsvEncoding('UTF-8')
     setSourceName('')
     setSourceUrl('')
     setDataUpdatedAt('')
@@ -69,14 +71,16 @@ export function DataStudioPage() {
     }
     setBusy(true)
     try {
-      const fileText = await file.text()
+      const fileBytes = await file.arrayBuffer()
       setFileName(file.name)
       setFileSize(file.size)
       setLayerName(file.name.replace(/\.(geojson|json|csv)$/i, ''))
 
       if (/\.csv$/i.test(file.name)) {
-        const table = parseCsvText(fileText)
+        const decoded = decodeCsvBytes(fileBytes)
+        const table = parseCsvText(decoded.text)
         const detected = detectCoordinateColumns(table.headers)
+        setCsvEncoding(decoded.encoding)
         setCsvTable(table)
         setCsvLongitudeColumn(detected.longitudeColumn)
         setCsvLatitudeColumn(detected.latitudeColumn)
@@ -89,7 +93,7 @@ export function DataStudioPage() {
         }
         setNotice('CSVを読み込みました。経度・緯度の列と座標系を確認してください。')
       } else {
-        const summary = parseGeoJsonText(fileText)
+        const summary = parseGeoJsonText(new TextDecoder('utf-8').decode(fileBytes))
         setParsed(summary)
         setNotice('GeoJSONを検証しました。出典と利用条件を確認してから登録してください。')
       }
@@ -154,7 +158,7 @@ export function DataStudioPage() {
         licenseNote: licenseNote.trim() || '利用条件未確認',
         licenseReviewed,
         fileName,
-        byteSize: fileSize,
+        byteSize: new TextEncoder().encode(JSON.stringify(parsed.collection)).byteLength,
         featureCount: parsed.featureCount,
         coordinateCount: parsed.coordinateCount,
         geometryCounts: parsed.geometryCounts,
@@ -172,6 +176,7 @@ export function DataStudioPage() {
       setCsvLatitudeColumn('')
       setCsvCrsReviewed(false)
       setCsvSkippedRows(0)
+      setCsvEncoding('UTF-8')
       setFileName('')
       setFileSize(0)
       setSourceName('')
@@ -245,8 +250,8 @@ export function DataStudioPage() {
             onDrop={onDrop}
           >
             <span className="geo-drop-icon"><Upload size={22} /></span>
-            <strong>{busy ? 'ファイルを検証しています…' : parsed ? fileName : 'GeoJSONファイルをここにドロップ'}</strong>
-            <span>{parsed ? parsed.featureCount.toLocaleString('ja-JP') + ' 地物 ・ ' + formatByteSize(fileSize) : 'またはファイルを選択してください'}</span>
+            <strong>{busy ? 'ファイルを検証しています…' : (parsed || csvTable) ? fileName : 'GeoJSON / CSVファイルをここにドロップ'}</strong>
+            <span>{parsed ? parsed.featureCount.toLocaleString('ja-JP') + ' 地物 ・ ' + formatByteSize(fileSize) : csvTable ? csvTable.rows.length.toLocaleString('ja-JP') + ' CSV行 ・ ' + csvEncoding : 'またはファイルを選択してください'}</span>
             <button type="button" className="button button-secondary" onClick={() => fileInput.current?.click()} disabled={busy}>
               <FileUp size={15} /> ファイルを選択
             </button>
@@ -265,7 +270,7 @@ export function DataStudioPage() {
             <div className="csv-mapping-form">
               <div className="csv-mapping-heading">
                 <div><span className="section-kicker">CSV COORDINATE MAPPING</span><strong>CSVの列を地図座標に対応付け</strong></div>
-                <span>{csvTable.rows.length.toLocaleString('ja-JP')} 行</span>
+                <span>{csvTable.rows.length.toLocaleString('ja-JP')} 行 / {csvEncoding}</span>
               </div>
               <p>CSV内の経度・緯度の列を指定します。列名から自動検出した場合も、元データの列見出しと値を必ず確認してください。</p>
               <div className="form-row">
@@ -409,7 +414,7 @@ export function DataStudioPage() {
                 <span className={'layer-category-marker category-' + layer.category}><Layers3 size={16} /></span>
                 <div className="registered-layer-main">
                   <strong>{layer.name}</strong>
-                  <span>{GEO_CATEGORY_LABELS[layer.category]} ・ {layer.featureCount.toLocaleString('ja-JP')} 地物 ・ {formatByteSize(layer.byteSize)}</span>
+                  <span>{GEO_CATEGORY_LABELS[layer.category]} ・ {layer.featureCount.toLocaleString('ja-JP')} 地物 ・ 保存サイズ {formatByteSize(layer.byteSize)}</span>
                   <small>{layer.sourceName} ・ 登録 {new Date(layer.importedAt).toLocaleString('ja-JP')}</small>
                   {layer.sourceUrl && <a href={layer.sourceUrl} target="_blank" rel="noreferrer">{layer.sourceUrl}</a>}
                 </div>
