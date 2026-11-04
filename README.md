@@ -32,6 +32,8 @@ npm run lint
 - 仮想地形を使ったReact Three Fiber/Three.jsの3Dシーン。回転・パン・ズーム、視点プリセット、建物・河川・道路・仮想施設レイヤ切替。
 - 仮想洪水表示の段階操作。実際の浸水予測と誤認しない説明を表示。
 - 仮想防災施設の追加・移動・削除、ローカル保存、JSONダウンロード。
+- GeoJSONデータ管理画面で、WGS84（経度・緯度）のGeoJSONを検証・登録・書き出し・削除できる。データはIndexedDBに保存し、外部サーバーへ送信しない。
+- 登録したGeoJSONは3Dシミュレーション上で相対縮尺の平面レイヤとして表示できる。大容量レイヤは描画件数・頂点数を制限し、元データは保持する。
 - データ未取得の分析・避難分析画面は未実装と明示し、架空の統計や道路経路を表示しない。
 
 ## ドキュメント
@@ -44,7 +46,7 @@ npm run lint
 
 ## 技術構成
 
-React 19、TypeScript、Vite、React Three Fiber、Three.js、Drei、Zustand、Vitest。実データ連携、座標変換、GeoJSON検証、経路探索等は今後の実装フェーズです。
+React 19、TypeScript、Vite、React Three Fiber、Three.js、Drei、Zustand、Vitest。GeoJSONのローカル取込・構造検証・相対縮尺3D表示に対応しています。公的データの自動取得、JGD2011/JGD2024等の座標変換、実測DEMの地形化、道路経路探索は未実装です。
 
 ## プロジェクト構成
 
