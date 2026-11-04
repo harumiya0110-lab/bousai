@@ -88,13 +88,14 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
       try {
         const records = await listGeoLayers()
         if (active) {
+          const previouslyKnownIds = knownGeoLayerIds.current
           const recordIds = new Set(records.map((layer) => layer.id))
-          const newlyAddedIds = records.filter((layer) => !knownGeoLayerIds.current.has(layer.id)).map((layer) => layer.id)
-          setVisibleGeoLayerIds((current) => {
-            const base = current ?? [...knownGeoLayerIds.current]
-            return [...base.filter((id) => recordIds.has(id)), ...newlyAddedIds]
-          })
+          const newlyAddedIds = records.filter((layer) => !previouslyKnownIds.has(layer.id)).map((layer) => layer.id)
           knownGeoLayerIds.current = recordIds
+          setVisibleGeoLayerIds((current) => {
+            const base = current ?? [...previouslyKnownIds]
+            return [...new Set([...base.filter((id) => recordIds.has(id)), ...newlyAddedIds])]
+          })
           setGeoLayers(records)
         }
       } catch (error) {
