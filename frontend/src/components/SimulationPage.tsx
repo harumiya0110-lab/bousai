@@ -287,10 +287,10 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
               <button type="button" className={cameraView === 'oblique' ? 'selected' : ''} title="斜め視点" onClick={() => setCameraView('oblique')}><Rotate3D size={15} /><span>斜め</span></button>
               <button type="button" className={cameraView === 'ground' ? 'selected' : ''} title="水平視点" onClick={() => setCameraView('ground')}><Focus size={15} /><span>水平</span></button>
             </div>
-            {toolMode !== 'navigate' && (
+            {toolMode !== 'navigate' && !showImportedLayers && (
               <div className="scene-tool-hint"><Move size={14} /> {toolMode === 'place' ? '地形をクリックして仮想施設を配置' : '地形をクリックして選択中の施設を移動'}</div>
             )}
-            <div className="scene-compass" aria-label="北方向"><span>N</span><div className="compass-arrow" /><small>仮想空間</small></div>
+            <div className="scene-compass" aria-label="北方向"><span>N</span><div className="compass-arrow" /><small>{showImportedLayers ? '地理データ' : '仮想空間'}</small></div>
             <div className="scene-scale">{showImportedLayers && geoLayers.length > 0 ? '読み込み済みGeoJSON / 相対縮尺 / 標高なし' : '地形・建物・道路・施設：仮想データ'}</div>
           </div>
           <div className="scene-help"><span><Move size={13} /> 左ドラッグで回転</span><span><Move size={13} /> 右ドラッグで移動</span><span><Plus size={13} /> ホイールでズーム</span><span className="touch-help">タッチ操作対応</span></div>
@@ -317,8 +317,8 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
           ) : (
             <div className="inspector-empty">
               <span className="inspector-empty-icon"><Crosshair size={19} /></span>
-              <strong>地点を選択</strong>
-              <p>3D空間の地形・建物・仮想施設をクリックすると、デモ上の情報が表示されます。</p>
+              <strong>{showImportedLayers ? '地物を選択' : '地点を選択'}</strong>
+              <p>{showImportedLayers ? '3D空間上の点・線・面をクリックすると、登録データの属性と出典が表示されます。' : '3D空間の地形・建物・仮想施設をクリックすると、デモ上の情報が表示されます。'}</p>
               <div className="inspector-tip"><Move size={14} /> 左ドラッグでカメラを回転</div>
               <div className="inspector-tip"><EyeOff size={14} /> 左のパネルでレイヤ切替</div>
             </div>
