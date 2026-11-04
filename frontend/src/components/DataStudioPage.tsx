@@ -387,7 +387,8 @@ export function DataStudioPage() {
             <a href="https://nlftp.mlit.go.jp/ksj/" target="_blank" rel="noreferrer"><Layers3 size={14} /> 国土数値情報 <Link2 size={12} /></a>
             <a href="https://www.gsi.go.jp/bousaichiri/hinanbasho.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 指定緊急避難場所・避難所 <Link2 size={12} /></a>
             <a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> ハザードマップポータル <Link2 size={12} /></a>
-            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・指定緊急避難場所CSV（CC BY 4.0） <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/uploaded/library/382035_evacuation_space.csv" target="_blank" rel="noreferrer"><FileUp size={14} /> 宇和島市・指定緊急避難場所CSVを取得（2024-04-01 / CC BY 4.0） <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・公式データ説明ページ <Link2 size={12} /></a>
             <a href="https://www.city.uwajima.ehime.jp/site/gesuido/usuishusshui.html" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> 宇和島市・雨水出水浸水想定区域図 <Link2 size={12} /></a>
           </div>
           <div className="local-storage-note"><Database size={14} /><span>登録したデータはこのブラウザーのIndexedDBに保存されます。各ファイル20 MB、合計100 MBまでです。サーバーへ送信されず、端末・ブラウザー間では共有されません。</span></div>
