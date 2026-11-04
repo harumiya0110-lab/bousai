@@ -2148,3 +2148,55 @@
   background: #55c4e8;
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
 }
+
+
+.imported-layers-section {
+  display: grid;
+  gap: 3px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+.imported-layers-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 5px;
+  color: #a9c1d2;
+  font-size: 8px;
+  font-weight: 600;
+}
+.imported-layers-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.imported-layers-heading svg { color: #6bcce9; }
+.imported-layers-heading small {
+  color: #6f879b;
+  font-size: 7px;
+  font-weight: 400;
+}
+.imported-layer-toggle {
+  margin-top: 0;
+  padding: 6px 4px;
+  border-top: 0;
+}
+.imported-layer-toggle .layer-copy strong {
+  overflow: hidden;
+  max-width: 145px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imported-layer-toggle .layer-copy small {
+  overflow: hidden;
+  max-width: 145px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imported-layer-toggle .geo-flood { color: #72ccef; background: rgba(56, 189, 248, 0.1); }
+.imported-layer-toggle .geo-shelters { color: #68dca4; background: rgba(66, 207, 136, 0.1); }
+.imported-layer-toggle .geo-roads { color: #efc477; background: rgba(242, 173, 63, 0.1); }
+.imported-layer-toggle .geo-buildings { color: #c4d1dc; background: rgba(148, 163, 184, 0.1); }
+.imported-layer-toggle .geo-other { color: #b8a8ef; background: rgba(177, 156, 240, 0.1); }
