@@ -1,36 +1,34 @@
-# アーキテクチャ（初期プレビュー）
+# アーキテクチャ（開発プレビュー）
 
 ## 構成
 
-- `frontend/src/App.tsx`: 日本語ホーム、ナビゲーション、画面状態、実験レポート表示・出力。
-- `frontend/src/components/SimulationPage.tsx`: 3D画面のレイヤ・選択詳細・仮想シナリオ・実験操作。
-- `frontend/src/components/Scene3D.tsx`: React Three FiberのCanvas、地形/建物/道路/河川/マーカーの描画、カメラ制御。
-- `frontend/src/data/demo.ts`: 区分Bの仮想地形・建物モデルの生成、デモレイヤとデータ型。
-- `frontend/src/data/reports.ts`: 仮想実験レポートの形式検証、localStorageへの保存、JSON出力用データURL。
-- `frontend/src/store.ts`: Zustandでレイヤ、選択状態、ツールモード、仮想施設を保持。
-- `docs/`: 開発状況、データ出典、利用者ガイド、安全上の制限事項。
+- frontend/src/App.tsx: 日本語ホーム、ナビゲーション、画面状態、実験レポート表示・出力。
+- frontend/src/components/SimulationPage.tsx: 3D画面のレイヤ・選択詳細・仮想シナリオ・実験操作。
+- frontend/src/components/Scene3D.tsx: React Three FiberのCanvas、地形/建物/道路/河川/マーカーの描画、カメラ制御。
+- frontend/src/data/demo.ts: 区分Bの仮想地形・建物モデルの生成、デモレイヤとデータ型。
+- frontend/src/data/reports.ts: 仮想実験レポートの形式検証、localStorageへの保存、JSON出力用データURL。
+- frontend/src/store.ts: Zustandでレイヤ、選択状態、ツールモード、仮想施設を保持。
+- docs/: 開発状況、データ出典、利用者ガイド、安全上の制限事項。
 
 ## 座標とデータ境界
 
-3Dシーンの`x,z`は視覚化用のローカル座標（単位なし）です。経緯度、測量座標、距離や標高の実測値として使用していません。A（公的実データ）とB（仮想シミュレーション）とC（推定・補助データ）は混在させず、データ源を確認する前にCRSを推測しません。
+3Dシーンのx,zは視覚化用のローカル座標（単位なし）です。経緯度、測量座標、距離や標高の実測値として使用していません。A（公的実データ）とB（仮想シミュレーション）とC（推定・補助データ）は混在させず、データ源を確認する前にCRSを推測しません。
 
-現在は外部データを自動取得しません。地域ごとのデータmanifest、DEM/GML/GeoJSONパーサー、座標変換、MapLibre 2D同期は未実装です。これらは実データの利用条件と形式を確認してから追加します。
+現在、公的データを自動取得する処理はありません。地域ごとの実測DEM/GMLパーサー、座標変換、MapLibre 2D同期は未実装です。これらは実データの利用条件と形式を確認してから追加します。
 
 ## 描画と性能
 
 - 地形は決定的な教育用関数から生成した三角形メッシュです。実測DEMではありません。
-- 建物表示は`InstancedMesh`を用いた仮想モデルです。
+- 建物表示はInstancedMeshを用いた仮想モデルです。
 - 3D画面とScene3Dモジュールは遅延読込し、依存ライブラリはサイズ上限を設けて分割しています。
-- GeoJSON、テクスチャ、地理レイヤ、LOD、Web Workerは未導入です。
-
 
 ## 地理データワークスペース（GeoJSON取込）
 
-- `frontend/src/components/DataStudioPage.tsx`: GeoJSONファイルの読み込み、出典・ライセンス情報の入力、一覧・削除・エクスポート。
-- `frontend/src/data/geojson.ts`: GeoJSON構造、WGS84経度緯度、座標数、地物数、範囲の検証と集計。
-- `frontend/src/data/geoStore.ts`: IndexedDBへのレイヤ保存。データ変更時はカスタムイベントで3D画面へ通知。
-- `frontend/src/components/GeoLayers3D.tsx`: 登録したPoint / LineString / Polygon等をローカルシーンの相対縮尺平面へ描画。
-- `SimulationPage.tsx`は保存済みレイヤを読み込み、利用者がインポートレイヤ表示を切り替えられる。
+- frontend/src/components/DataStudioPage.tsx: GeoJSONファイルの読み込み、出典・ライセンス情報の入力、一覧・削除・エクスポート。
+- frontend/src/data/geojson.ts: GeoJSON構造、WGS84経度緯度、座標数、地物数、範囲の検証と集計。
+- frontend/src/data/geoStore.ts: IndexedDBへのレイヤ保存。データ変更時はカスタムイベントで3D画面へ通知。
+- frontend/src/components/GeoLayers3D.tsx: 登録したPoint / LineString / Polygon等をローカルシーンの相対縮尺平面へ描画。
+- SimulationPage.tsxは保存済みレイヤを読み込み、利用者がインポートレイヤ表示を切り替えられる。
 
 ### 取込データの制約
 
