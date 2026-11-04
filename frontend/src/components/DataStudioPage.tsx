@@ -4,6 +4,7 @@ import {
   Layers3, Link2, MapPin, RefreshCw, ShieldAlert, Trash2, Upload,
 } from 'lucide-react'
 import { deleteGeoLayer, listGeoLayers, saveGeoLayer } from '../data/geoStore'
+import { csvToGeoJson, detectCoordinateColumns, parseCsvText, type CsvTable } from '../data/csv'
 import {
   formatByteSize, GEO_CATEGORY_LABELS, MAX_GEOJSON_BYTES, MAX_TOTAL_GEOJSON_BYTES, parseGeoJsonText,
   type GeoJsonSummary, type GeoLayerCategory, type GeoLayerRecord,
@@ -16,6 +17,11 @@ export function DataStudioPage() {
   const fileInput = useRef<HTMLInputElement>(null)
   const [layers, setLayers] = useState<GeoLayerRecord[]>([])
   const [parsed, setParsed] = useState<GeoJsonSummary | null>(null)
+  const [csvTable, setCsvTable] = useState<CsvTable | null>(null)
+  const [csvLongitudeColumn, setCsvLongitudeColumn] = useState('')
+  const [csvLatitudeColumn, setCsvLatitudeColumn] = useState('')
+  const [csvCrsReviewed, setCsvCrsReviewed] = useState(false)
+  const [csvSkippedRows, setCsvSkippedRows] = useState(0)
   const [fileName, setFileName] = useState('')
   const [fileSize, setFileSize] = useState(0)
   const [layerName, setLayerName] = useState('')
@@ -45,26 +51,72 @@ export function DataStudioPage() {
     setError('')
     setNotice('')
     setParsed(null)
+    setCsvTable(null)
+    setCsvCrsReviewed(false)
+    setCsvSkippedRows(0)
+    setSourceName('')
+    setSourceUrl('')
+    setDataUpdatedAt('')
+    setLicenseNote('')
+    setLicenseReviewed(false)
     if (file.size > MAX_GEOJSON_BYTES) {
       setError('ファイルが大きすぎます。上限は ' + formatByteSize(MAX_GEOJSON_BYTES) + ' です。')
       return
     }
-    if (!/\.(geojson|json)$/i.test(file.name)) {
-      setError('GeoJSON（.geojson / .json）ファイルを選択してください。')
+    if (!/\.(geojson|json|csv)$/i.test(file.name)) {
+      setError('GeoJSON（.geojson / .json）またはCSVファイルを選択してください。')
       return
     }
     setBusy(true)
     try {
-      const summary = parseGeoJsonText(await file.text())
-      setParsed(summary)
+      const fileText = await file.text()
       setFileName(file.name)
       setFileSize(file.size)
-      setLayerName(file.name.replace(/\.(geojson|json)$/i, ''))
-      setNotice('GeoJSONを検証しました。出典と利用条件を確認してから登録してください。')
+      setLayerName(file.name.replace(/\.(geojson|json|csv)$/i, ''))
+
+      if (/\.csv$/i.test(file.name)) {
+        const table = parseCsvText(fileText)
+        const detected = detectCoordinateColumns(table.headers)
+        setCsvTable(table)
+        setCsvLongitudeColumn(detected.longitudeColumn)
+        setCsvLatitudeColumn(detected.latitudeColumn)
+        setCategory(/382035_evacuation_space|指定緊急避難場所/i.test(file.name) ? 'shelters' : 'other')
+        if (/382035_evacuation_space|指定緊急避難場所/i.test(file.name)) {
+          setSourceName('宇和島市（危機管理課）')
+          setSourceUrl('https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html')
+          setDataUpdatedAt('2024-04-01')
+          setLicenseNote('CC BY 4.0')
+        }
+        setNotice('CSVを読み込みました。経度・緯度の列と座標系を確認してください。')
+      } else {
+        const summary = parseGeoJsonText(fileText)
+        setParsed(summary)
+        setNotice('GeoJSONを検証しました。出典と利用条件を確認してから登録してください。')
+      }
     } catch (parseError) {
-      setError(parseError instanceof Error ? parseError.message : 'GeoJSONを読み込めませんでした。')
+      setError(parseError instanceof Error ? parseError.message : 'ファイルを読み込めませんでした。')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const previewCsv = () => {
+    if (!csvTable) return
+    if (!csvCrsReviewed) {
+      setError('CSVの座標がWGS84（経度・緯度）であることを、元データの仕様で確認してください。')
+      return
+    }
+    try {
+      const converted = csvToGeoJson(csvTable, csvLongitudeColumn, csvLatitudeColumn)
+      setParsed(parseGeoJsonText(JSON.stringify(converted.collection)))
+      setCsvSkippedRows(converted.skippedRows)
+      setNotice(
+        converted.importedRows.toLocaleString('ja-JP') + '件を地図用ポイントへ変換しました。'
+        + (converted.skippedRows > 0 ? ' 座標が欠損・範囲外の' + converted.skippedRows + '行は除外しました。' : ''),
+      )
+      setError('')
+    } catch (conversionError) {
+      setError(conversionError instanceof Error ? conversionError.message : 'CSVを変換できませんでした。')
     }
   }
 
@@ -115,6 +167,11 @@ export function DataStudioPage() {
       await saveGeoLayer(record)
       await refreshLayers()
       setParsed(null)
+      setCsvTable(null)
+      setCsvLongitudeColumn('')
+      setCsvLatitudeColumn('')
+      setCsvCrsReviewed(false)
+      setCsvSkippedRows(0)
       setFileName('')
       setFileSize(0)
       setSourceName('')
@@ -147,7 +204,7 @@ export function DataStudioPage() {
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = layer.fileName || (layer.id + '.geojson')
+    anchor.download = layer.fileName ? layer.fileName.replace(/\.(csv|json)$/i, '.geojson') : (layer.id + '.geojson')
     anchor.click()
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -196,17 +253,64 @@ export function DataStudioPage() {
             <input
               ref={fileInput}
               type="file"
-              accept=".geojson,.json,application/geo+json,application/json"
+              accept=".geojson,.json,.csv,application/geo+json,application/json,text/csv"
               aria-label="GeoJSONファイルを選択"
               onChange={(event) => void handleFile(event.target.files?.[0])}
               hidden
             />
-            <small>対応形式：GeoJSON / JSON　・　各ファイル上限：{formatByteSize(MAX_GEOJSON_BYTES)}　・　合計保存上限：{formatByteSize(MAX_TOTAL_GEOJSON_BYTES)}　・　地物上限：50,000件</small>
+            <small>対応形式：GeoJSON / JSON / CSV　・　各ファイル上限：{formatByteSize(MAX_GEOJSON_BYTES)}　・　合計保存上限：{formatByteSize(MAX_TOTAL_GEOJSON_BYTES)}　・　地物上限：50,000件</small>
           </div>
+
+          {csvTable && !parsed && (
+            <div className="csv-mapping-form">
+              <div className="csv-mapping-heading">
+                <div><span className="section-kicker">CSV COORDINATE MAPPING</span><strong>CSVの列を地図座標に対応付け</strong></div>
+                <span>{csvTable.rows.length.toLocaleString('ja-JP')} 行</span>
+              </div>
+              <p>CSV内の経度・緯度の列を指定します。列名から自動検出した場合も、元データの列見出しと値を必ず確認してください。</p>
+              <div className="form-row">
+                <div className="form-field">
+                  <label htmlFor="csv-longitude-column">経度の列（Longitude）</label>
+                  <select id="csv-longitude-column" value={csvLongitudeColumn} onChange={(event) => setCsvLongitudeColumn(event.target.value)}>
+                    <option value="">列を選択してください</option>
+                    {csvTable.headers.map((header) => <option key={header} value={header}>{header}</option>)}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="csv-latitude-column">緯度の列（Latitude）</label>
+                  <select id="csv-latitude-column" value={csvLatitudeColumn} onChange={(event) => setCsvLatitudeColumn(event.target.value)}>
+                    <option value="">列を選択してください</option>
+                    {csvTable.headers.map((header) => <option key={header} value={header}>{header}</option>)}
+                  </select>
+                </div>
+              </div>
+              <label className="license-check">
+                <input type="checkbox" checked={csvCrsReviewed} onChange={(event) => setCsvCrsReviewed(event.target.checked)} />
+                <span>元データの仕様を確認し、選択した列がWGS84 / OGC:CRS84の経度・緯度であることを確認しました。</span>
+              </label>
+              <button type="button" className="button button-primary" onClick={previewCsv} disabled={busy || !csvLongitudeColumn || !csvLatitudeColumn || !csvCrsReviewed}>
+                <MapPin size={15} /> ポイントGeoJSONへ変換してプレビュー
+              </button>
+              <div className="csv-column-preview">
+                <strong>先頭3行のプレビュー</strong>
+                <div className="csv-preview-table">
+                  {csvTable.rows.slice(0, 3).map((row, rowIndex) => (
+                    <div className="csv-preview-row" key={rowIndex}>
+                      <span>{rowIndex + 1}</span>
+                      <span>{row[csvTable.headers.indexOf(csvLongitudeColumn)] || '—'}</span>
+                      <span>{row[csvTable.headers.indexOf(csvLatitudeColumn)] || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+                <small>表示順：行番号 / 選択した経度 / 選択した緯度</small>
+              </div>
+            </div>
+          )}
 
           {parsed && (
             <form className="geo-import-form" onSubmit={saveLayer}>
-              <div className="geo-validation-title"><CheckCircle2 size={16} /><strong>構造検証に合格しました</strong><span>WGS84経緯度として解釈</span></div>
+              <div className="geo-validation-title"><CheckCircle2 size={16} /><strong>{csvTable ? 'CSVをポイントGeoJSONに変換しました' : '構造検証に合格しました'}</strong><span>WGS84経緯度として解釈</span></div>
+              {csvSkippedRows > 0 && <div className="csv-skipped-note">{csvSkippedRows.toLocaleString('ja-JP')} 行は座標が欠損または範囲外のため、地図レイヤから除外されます。</div>}
               <div className="geo-summary-grid">
                 <div><strong>{parsed.featureCount.toLocaleString('ja-JP')}</strong><span>地物数</span></div>
                 <div><strong>{parsed.coordinateCount.toLocaleString('ja-JP')}</strong><span>座標数</span></div>
@@ -253,7 +357,7 @@ export function DataStudioPage() {
               </label>
               <div className="geo-import-actions">
                 <button className="button button-primary" type="submit" disabled={busy}><Database size={15} /> このレイヤを登録</button>
-                <button className="button button-secondary" type="button" onClick={() => { setParsed(null); setError(''); setNotice(''); if (fileInput.current) fileInput.current.value = '' }}>キャンセル</button>
+                <button className="button button-secondary" type="button" onClick={() => { setParsed(null); setCsvTable(null); setError(''); setNotice(''); if (fileInput.current) fileInput.current.value = '' }}>キャンセル</button>
               </div>
             </form>
           )}
@@ -283,6 +387,8 @@ export function DataStudioPage() {
             <a href="https://nlftp.mlit.go.jp/ksj/" target="_blank" rel="noreferrer"><Layers3 size={14} /> 国土数値情報 <Link2 size={12} /></a>
             <a href="https://www.gsi.go.jp/bousaichiri/hinanbasho.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 指定緊急避難場所・避難所 <Link2 size={12} /></a>
             <a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> ハザードマップポータル <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・指定緊急避難場所CSV（CC BY 4.0） <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/gesuido/usuishusshui.html" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> 宇和島市・雨水出水浸水想定区域図 <Link2 size={12} /></a>
           </div>
           <div className="local-storage-note"><Database size={14} /><span>登録したデータはこのブラウザーのIndexedDBに保存されます。各ファイル20 MB、合計100 MBまでです。サーバーへ送信されず、端末・ブラウザー間では共有されません。</span></div>
         </aside>
