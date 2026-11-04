@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { deleteGeoLayer, listGeoLayers, saveGeoLayer } from '../data/geoStore'
 import {
-  formatByteSize, GEO_CATEGORY_LABELS, MAX_GEOJSON_BYTES, parseGeoJsonText,
+  formatByteSize, GEO_CATEGORY_LABELS, MAX_GEOJSON_BYTES, MAX_TOTAL_GEOJSON_BYTES, parseGeoJsonText,
   type GeoJsonSummary, type GeoLayerCategory, type GeoLayerRecord,
 } from '../data/geojson'
 import './DataStudioPage.css'
@@ -201,7 +201,7 @@ export function DataStudioPage() {
               onChange={(event) => void handleFile(event.target.files?.[0])}
               hidden
             />
-            <small>対応形式：GeoJSON / JSON　・　ファイル上限：20 MB　・　地物上限：50,000件</small>
+            <small>対応形式：GeoJSON / JSON　・　各ファイル上限：{formatByteSize(MAX_GEOJSON_BYTES)}　・　合計保存上限：{formatByteSize(MAX_TOTAL_GEOJSON_BYTES)}　・　地物上限：50,000件</small>
           </div>
 
           {parsed && (
@@ -284,7 +284,7 @@ export function DataStudioPage() {
             <a href="https://www.gsi.go.jp/bousaichiri/hinanbasho.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 指定緊急避難場所・避難所 <Link2 size={12} /></a>
             <a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> ハザードマップポータル <Link2 size={12} /></a>
           </div>
-          <div className="local-storage-note"><Database size={14} /><span>登録したデータはこのブラウザーのIndexedDBに保存されます。サーバーへ送信されません。端末・ブラウザー間では共有されません。</span></div>
+          <div className="local-storage-note"><Database size={14} /><span>登録したデータはこのブラウザーのIndexedDBに保存されます。各ファイル20 MB、合計100 MBまでです。サーバーへ送信されず、端末・ブラウザー間では共有されません。</span></div>
         </aside>
       </div>
 
