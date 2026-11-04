@@ -30,8 +30,8 @@
 
 ### GitHub Pages公開設定（2026-11-05）
 
-- `main`へのpushと手動実行で動くGitHub Actionsワークフローを追加しました。型チェック、テスト、lintが成功した場合のみ、`/bousai/`をベースパスにビルドしてGitHub Pagesへデプロイします。
-- GitHub上の対象リポジトリは存在し、空の状態であることを確認しました。GitHub側のPages設定でSourceを **GitHub Actions** に切り替えてから、デプロイワークフローを実行してください。
+- GitHub Actions方式は、アカウントの課金ロックでジョブが開始されないため採用しません。Actionsを介さず公開できるよう、`/bousai/`をベースパスにビルドした静的ファイルを`gh-pages`ブランチへ直接配置します。
+- GitHub上の対象リポジトリは存在し、初期状態では空であることを確認しました。`gh-pages`ブランチを公開した後、GitHubリポジトリのPages設定でSourceを **Deploy from a branch**、Branchを **gh-pages**、フォルダーを **/(root)** に設定してください。
 - 公開URL: <https://harumiya0110-lab.github.io/bousai/>
 
 ## 今回の実装範囲と進捗

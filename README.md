@@ -22,13 +22,9 @@ npm run lint
 
 ## GitHub Pagesへのデプロイ
 
-このリポジトリはGitHub ActionsでGitHub Pagesへデプロイできます。
+ビルド済みサイトは `gh-pages` ブランチに配置します。公開を有効にするには、GitHubリポジトリの **Settings → Pages → Build and deployment** で、Sourceを **Deploy from a branch**、Branchを **gh-pages**、フォルダーを **/(root)** に設定してください。
 
-1. GitHubリポジトリの **Settings → Pages → Build and deployment** で、Sourceを **GitHub Actions** に設定します。
-2. `main` ブランチへpushするか、Actionsタブから **Deploy to GitHub Pages** を手動実行します。
-3. Actionsのデプロイが成功すると、サイトは <https://harumiya0110-lab.github.io/bousai/> で公開されます。
-
-ワークフローでは型チェック・テスト・lintを実行してからビルドし、`/bousai/` をベースパスとしてGitHub Pagesに公開します。通常のローカル開発・プレビューではルートパスを使用します。
+設定後、サイトは <https://harumiya0110-lab.github.io/bousai/> で公開されます。新しい版を公開するときは、`VITE_BASE_PATH=/bousai/` を指定して `frontend` をビルドし、生成した `frontend/dist` の内容を `gh-pages` ブランチのルートへ反映します。通常のローカル開発・プレビューではルートパスを使用します。
 
 ## 現在の実装範囲
 
