@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Line } from '@react-three/drei'
+import type { ThreeEvent } from '@react-three/fiber'
 import { Object3D, Path, Shape, ShapeGeometry, DoubleSide, type InstancedMesh } from 'three'
 import type { GeoJsonFeature, GeoJsonGeometry, GeoJsonPosition, GeoLayerRecord } from '../data/geojson'
 
@@ -22,6 +23,29 @@ interface GeometryParts {
   lines: GeoJsonPosition[][]
   polygons: GeoJsonPosition[][][]
 }
+
+interface PointRecord {
+  position: GeoJsonPosition
+  feature: GeoJsonFeature
+}
+
+interface LineRecord {
+  positions: GeoJsonPosition[]
+  feature: GeoJsonFeature
+}
+
+interface PolygonRecord {
+  rings: GeoJsonPosition[][]
+  feature: GeoJsonFeature
+}
+
+interface RenderParts {
+  points: PointRecord[]
+  lines: LineRecord[]
+  polygons: PolygonRecord[]
+}
+
+type SelectFeature = (layer: GeoLayerRecord, feature: GeoJsonFeature) => void
 
 function emptyParts(): GeometryParts {
   return { points: [], lines: [], polygons: [] }
@@ -131,13 +155,15 @@ function flattenFeature(feature: GeoJsonFeature): GeometryParts {
   return result
 }
 
-function PolygonSurface({ rings, projection, color }: {
-  rings: GeoJsonPosition[][]
+function PolygonSurface({ record, projection, color, layer, onSelectFeature }: {
+  record: PolygonRecord
   projection: Projection
   color: string
+  layer: GeoLayerRecord
+  onSelectFeature: SelectFeature
 }) {
   const geometry = useMemo(() => {
-    const outer = rings[0]
+    const outer = record.rings[0]
     if (!outer || outer.length < 4) return null
     const shape = new Shape()
     outer.forEach((position, index) => {
@@ -145,7 +171,7 @@ function PolygonSurface({ rings, projection, color }: {
       if (index === 0) shape.moveTo(x, -z)
       else shape.lineTo(x, -z)
     })
-    for (const ring of rings.slice(1)) {
+    for (const ring of record.rings.slice(1)) {
       if (ring.length < 4) continue
       const hole = new Path()
       ring.forEach((position, index) => {
@@ -158,27 +184,36 @@ function PolygonSurface({ rings, projection, color }: {
     const result = new ShapeGeometry(shape)
     result.rotateX(-Math.PI / 2)
     return result
-  }, [rings, projection])
+  }, [record.rings, projection])
 
   useEffect(() => () => geometry?.dispose(), [geometry])
   if (!geometry) return null
   return (
-    <mesh geometry={geometry} position={[0, 0.12, 0]}>
+    <mesh
+      geometry={geometry}
+      position={[0, 0.12, 0]}
+      onClick={(event) => {
+        event.stopPropagation()
+        onSelectFeature(layer, record.feature)
+      }}
+    >
       <meshBasicMaterial color={color} transparent opacity={0.48} side={DoubleSide} depthWrite={false} />
     </mesh>
   )
 }
 
-function PointInstances({ positions, projection, color }: {
-  positions: GeoJsonPosition[]
+function PointInstances({ records, projection, color, layer, onSelectFeature }: {
+  records: PointRecord[]
   projection: Projection
   color: string
+  layer: GeoLayerRecord
+  onSelectFeature: SelectFeature
 }) {
   const mesh = useRef<InstancedMesh>(null)
   useEffect(() => {
     if (!mesh.current) return
     const transform = new Object3D()
-    positions.forEach((position, index) => {
+    records.forEach(({ position }, index) => {
       const [x, z] = project(position, projection)
       transform.position.set(x, 0.28, z)
       transform.scale.setScalar(1)
@@ -187,20 +222,31 @@ function PointInstances({ positions, projection, color }: {
     })
     mesh.current.instanceMatrix.needsUpdate = true
     mesh.current.computeBoundingSphere()
-  }, [positions, projection])
+  }, [records, projection])
 
-  if (positions.length === 0) return null
+  const selectInstance = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation()
+    if (event.instanceId === undefined) return
+    const record = records[event.instanceId]
+    if (record) onSelectFeature(layer, record.feature)
+  }
+
+  if (records.length === 0) return null
   return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, positions.length]}>
+    <instancedMesh ref={mesh} args={[undefined, undefined, records.length]} onClick={selectInstance}>
       <sphereGeometry args={[0.105, 8, 6]} />
       <meshBasicMaterial color={color} />
     </instancedMesh>
   )
 }
 
-function GeoLayerVisual({ layer, projection }: { layer: GeoLayerRecord; projection: Projection }) {
+function GeoLayerVisual({ layer, projection, onSelectFeature }: {
+  layer: GeoLayerRecord
+  projection: Projection
+  onSelectFeature: SelectFeature
+}) {
   const visual = useMemo(() => {
-    const result: GeometryParts = emptyParts()
+    const result: RenderParts = { points: [], lines: [], polygons: [] }
     // Keep the data intact in IndexedDB, but bound interactive draw calls and vertex counts.
     const maxPoints = 8_000
     const maxLines = 500
@@ -212,16 +258,18 @@ function GeoLayerVisual({ layer, projection }: { layer: GeoLayerRecord; projecti
     }
     for (const feature of layer.collection.features.slice(0, 2500)) {
       const parts = flattenFeature(feature)
-      const remainingPoints = Math.max(0, maxPoints - result.points.length)
-      if (remainingPoints > 0) result.points.push(...parts.points.slice(0, remainingPoints))
+      for (const position of parts.points) {
+        if (result.points.length >= maxPoints) break
+        result.points.push({ position, feature })
+      }
       for (const line of parts.lines) {
         if (result.lines.length >= maxLines) break
-        if (line.length >= 2) result.lines.push(sample(line, 1200))
+        if (line.length >= 2) result.lines.push({ positions: sample(line, 1200), feature })
       }
       for (const polygon of parts.polygons) {
         if (result.polygons.length >= maxPolygons) break
         const sampledRings = polygon.map((ring) => sample(ring, 600))
-        if (sampledRings[0]?.length >= 4) result.polygons.push(sampledRings)
+        if (sampledRings[0]?.length >= 4) result.polygons.push({ rings: sampledRings, feature })
       }
       if (result.points.length >= maxPoints && result.lines.length >= maxLines && result.polygons.length >= maxPolygons) break
     }
@@ -231,13 +279,20 @@ function GeoLayerVisual({ layer, projection }: { layer: GeoLayerRecord; projecti
 
   return (
     <group>
-      {visual.polygons.map((rings, index) => (
-        <PolygonSurface key={layer.id + '-polygon-' + index} rings={rings} projection={projection} color={color} />
+      {visual.polygons.map((record, index) => (
+        <PolygonSurface
+          key={layer.id + '-polygon-' + index}
+          record={record}
+          layer={layer}
+          projection={projection}
+          color={color}
+          onSelectFeature={onSelectFeature}
+        />
       ))}
-      {visual.lines.map((line, index) => (
+      {visual.lines.map((record, index) => (
         <Line
           key={layer.id + '-line-' + index}
-          points={line.map((position) => {
+          points={record.positions.map((position) => {
             const [x, z] = project(position, projection)
             return [x, 0.2, z] as [number, number, number]
           })}
@@ -245,14 +300,27 @@ function GeoLayerVisual({ layer, projection }: { layer: GeoLayerRecord; projecti
           lineWidth={layer.category === 'roads' ? 2.2 : 1.5}
           transparent
           opacity={0.92}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelectFeature(layer, record.feature)
+          }}
         />
       ))}
-      <PointInstances positions={visual.points} projection={projection} color={color} />
+      <PointInstances
+        records={visual.points}
+        layer={layer}
+        projection={projection}
+        color={color}
+        onSelectFeature={onSelectFeature}
+      />
     </group>
   )
 }
 
-export function GeoLayers3D({ layers }: { layers: GeoLayerRecord[] }) {
+export function GeoLayers3D({ layers, onSelectFeature }: {
+  layers: GeoLayerRecord[]
+  onSelectFeature: SelectFeature
+}) {
   const bounds = useMemo(() => collectLayerBounds(layers), [layers])
   const projection = useMemo(() => bounds ? createProjection(bounds, layers) : null, [bounds, layers])
   if (!bounds || !projection) return null
@@ -264,7 +332,14 @@ export function GeoLayers3D({ layers }: { layers: GeoLayerRecord[] }) {
         <meshBasicMaterial color="#132333" />
       </mesh>
       <gridHelper args={[18, 18, '#496477', '#263e50']} position={[0, 0.015, 0]} />
-      {layers.map((layer) => <GeoLayerVisual key={layer.id} layer={layer} projection={projection} />)}
+      {layers.map((layer) => (
+        <GeoLayerVisual
+          key={layer.id}
+          layer={layer}
+          projection={projection}
+          onSelectFeature={onSelectFeature}
+        />
+      ))}
     </group>
   )
 }
