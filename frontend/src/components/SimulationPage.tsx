@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import {
   Building2,
   ChevronDown,
@@ -29,7 +29,7 @@ import { demoLayers, DEMO_ONLY_WARNING, type LayerId, type LocalPosition, type S
 import type { ExperimentReport } from '../data/reports'
 import { useAppStore } from '../store'
 import { GEO_LAYERS_CHANGED_EVENT, listGeoLayers } from '../data/geoStore'
-import type { GeoLayerRecord } from '../data/geojson'
+import { GEO_CATEGORY_LABELS, type GeoLayerRecord } from '../data/geojson'
 
 const Scene3D = lazy(() => import('./Scene3D').then(({ Scene3D: scene }) => ({ default: scene })))
 
@@ -77,14 +77,26 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
   const [floodStep, setFloodStep] = useState(() => useAppStore.getState().layers.flood ? 1 : 0)
   const [playing, setPlaying] = useState(false)
   const [geoLayers, setGeoLayers] = useState<GeoLayerRecord[]>([])
-  const [showImportedLayers, setShowImportedLayers] = useState(true)
+  const [visibleGeoLayerIds, setVisibleGeoLayerIds] = useState<string[] | null>(null)
+  const knownGeoLayerIds = useRef<Set<string>>(new Set())
+  const visibleGeoLayers = geoLayers.filter((layer) => visibleGeoLayerIds?.includes(layer.id))
+  const showImportedLayers = visibleGeoLayers.length > 0
 
   useEffect(() => {
     let active = true
     const refresh = async () => {
       try {
         const records = await listGeoLayers()
-        if (active) setGeoLayers(records)
+        if (active) {
+          const recordIds = new Set(records.map((layer) => layer.id))
+          const newlyAddedIds = records.filter((layer) => !knownGeoLayerIds.current.has(layer.id)).map((layer) => layer.id)
+          setVisibleGeoLayerIds((current) => {
+            const base = current ?? [...knownGeoLayerIds.current]
+            return [...base.filter((id) => recordIds.has(id)), ...newlyAddedIds]
+          })
+          knownGeoLayerIds.current = recordIds
+          setGeoLayers(records)
+        }
       } catch (error) {
         if (active) notify(error instanceof Error ? '地理データを読み込めませんでした: ' + error.message : '地理データを読み込めませんでした。')
       }
@@ -147,6 +159,14 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
 
   const selectedFacility = facilities.find((facility) => facility.id === selectedFacilityId)
 
+  const toggleImportedLayer = (id: string, visible: boolean) => {
+    setVisibleGeoLayerIds((current) => {
+      const currentIds = current ?? geoLayers.map((layer) => layer.id)
+      if (visible) return currentIds.includes(id) ? currentIds : [...currentIds, id]
+      return currentIds.filter((currentId) => currentId !== id)
+    })
+  }
+
   return (
     <div className="simulation-page page-enter">
       <div className="sim-header">
@@ -187,12 +207,23 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             })}
           </div>
           {geoLayers.length > 0 && (
-            <label className={`layer-row imported-layer-toggle ${showImportedLayers ? 'layer-enabled' : ''}`}>
-              <span className="layer-icon cyan"><Database size={15} /></span>
-              <span className="layer-copy"><strong>読み込んだGeoJSON</strong><small>{geoLayers.length} レイヤ / 相対縮尺の平面表示</small></span>
-              <input aria-label="読み込んだGeoJSONレイヤ" type="checkbox" checked={showImportedLayers} onChange={(event) => setShowImportedLayers(event.target.checked)} />
-              <span className="toggle-track" aria-hidden="true"><span /></span>
-            </label>
+            <div className="imported-layers-section">
+              <div className="imported-layers-heading">
+                <span><Database size={13} /> 読み込んだGeoJSON</span>
+                <small>{visibleGeoLayers.length} / {geoLayers.length} 表示中</small>
+              </div>
+              {geoLayers.map((geoLayer) => {
+                const isVisible = visibleGeoLayerIds?.includes(geoLayer.id) ?? true
+                return (
+                  <label className={`layer-row imported-layer-toggle ${isVisible ? 'layer-enabled' : ''}`} key={geoLayer.id}>
+                    <span className={`layer-icon geo-${geoLayer.category}`}><Database size={14} /></span>
+                    <span className="layer-copy"><strong>{geoLayer.name}</strong><small>{GEO_CATEGORY_LABELS[geoLayer.category]} ・ {geoLayer.featureCount.toLocaleString('ja-JP')} 地物</small></span>
+                    <input aria-label={geoLayer.name + 'レイヤ'} type="checkbox" checked={isVisible} onChange={(event) => toggleImportedLayer(geoLayer.id, event.target.checked)} />
+                    <span className="toggle-track" aria-hidden="true"><span /></span>
+                  </label>
+                )
+              })}
+            </div>
           )}
           <div className="layer-legend">
             <div className="legend-heading"><span>表示の凡例</span><CircleHelp size={13} /></div>
@@ -217,7 +248,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
                 toolMode={toolMode}
                 selectedFacilityId={selectedFacilityId}
                 cameraView={cameraView}
-                geoLayers={geoLayers}
+                geoLayers={visibleGeoLayers}
                 geoLayersVisible={showImportedLayers}
                 onSelectLocation={(location) => {
                   selectLocation(location)
