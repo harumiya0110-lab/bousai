@@ -58,6 +58,10 @@ function isPosition(value: unknown): value is GeoJsonPosition {
     && typeof value[1] === 'number'
 }
 
+const MAX_FEATURE_RENDER_POINTS = 8_000
+const MAX_FEATURE_RENDER_LINES = 500
+const MAX_FEATURE_RENDER_POLYGONS = 500
+
 function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): void {
   if (!geometry) return
   if (geometry.type === 'GeometryCollection') {
@@ -67,29 +71,32 @@ function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): 
 
   const coordinates = geometry.coordinates
   if (geometry.type === 'Point') {
-    if (isPosition(coordinates)) result.points.push(coordinates)
+    if (isPosition(coordinates) && result.points.length < MAX_FEATURE_RENDER_POINTS) result.points.push(coordinates)
   } else if (geometry.type === 'MultiPoint') {
     if (Array.isArray(coordinates)) {
       for (const position of coordinates) {
+        if (result.points.length >= MAX_FEATURE_RENDER_POINTS) break
         if (isPosition(position)) result.points.push(position)
       }
     }
   } else if (geometry.type === 'LineString') {
-    if (Array.isArray(coordinates) && coordinates.every(isPosition)) result.lines.push(coordinates)
+    if (result.lines.length < MAX_FEATURE_RENDER_LINES && Array.isArray(coordinates) && coordinates.every(isPosition)) result.lines.push(coordinates)
   } else if (geometry.type === 'MultiLineString') {
     if (Array.isArray(coordinates)) {
       for (const line of coordinates) {
+        if (result.lines.length >= MAX_FEATURE_RENDER_LINES) break
         if (Array.isArray(line) && line.every(isPosition)) result.lines.push(line)
       }
     }
   } else if (geometry.type === 'Polygon') {
-    if (Array.isArray(coordinates)) {
+    if (result.polygons.length < MAX_FEATURE_RENDER_POLYGONS && Array.isArray(coordinates)) {
       const rings = coordinates.filter((ring): ring is GeoJsonPosition[] => Array.isArray(ring) && ring.every(isPosition))
       if (rings.length > 0) result.polygons.push(rings)
     }
   } else if (geometry.type === 'MultiPolygon') {
     if (Array.isArray(coordinates)) {
       for (const polygon of coordinates) {
+        if (result.polygons.length >= MAX_FEATURE_RENDER_POLYGONS) break
         if (!Array.isArray(polygon)) continue
         const rings = polygon.filter((ring): ring is GeoJsonPosition[] => Array.isArray(ring) && ring.every(isPosition))
         if (rings.length > 0) result.polygons.push(rings)
