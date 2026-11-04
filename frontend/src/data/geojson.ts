@@ -59,6 +59,7 @@ export interface GeoLayerRecord {
 }
 
 export const MAX_GEOJSON_BYTES = 20 * 1024 * 1024
+export const MAX_TOTAL_GEOJSON_BYTES = 100 * 1024 * 1024
 export const MAX_GEOJSON_FEATURES = 50_000
 export const MAX_GEOJSON_COORDINATES = 500_000
 
