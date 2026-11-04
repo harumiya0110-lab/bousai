@@ -209,6 +209,9 @@ function normalizeInput(input: unknown): GeoJsonFeatureCollection {
     if (!Array.isArray(input.features)) {
       throw new Error('FeatureCollectionのfeaturesが配列ではありません。')
     }
+    if (input.features.length > MAX_GEOJSON_FEATURES) {
+      throw new Error(`地物数が上限（${MAX_GEOJSON_FEATURES.toLocaleString('ja-JP')}件）を超えています。`)
+    }
     if (input.features.length === 0) {
       throw new Error('GeoJSONに地物がありません。')
     }
