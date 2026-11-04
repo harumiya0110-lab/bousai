@@ -2124,3 +2124,27 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Imported GeoJSON layer indicator and imported-data scene state */
+.imported-layer-toggle {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+}
+.imported-layer-toggle .layer-icon {
+  color: #69d1ef;
+  background: rgba(56, 189, 248, 0.1);
+}
+.imported-layer-toggle .layer-copy small {
+  color: #78bcd2;
+}
+.scene-demo-badge.imported {
+  color: #82d9f2;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.1);
+}
+.scene-demo-badge.imported span {
+  background: #55c4e8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+}
