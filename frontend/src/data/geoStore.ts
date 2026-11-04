@@ -1,4 +1,4 @@
-import type { GeoLayerRecord } from './geojson'
+import { MAX_TOTAL_GEOJSON_BYTES, type GeoLayerRecord } from './geojson'
 
 const DATABASE_NAME = 'disaster-scope-geodata'
 const DATABASE_VERSION = 1
@@ -59,8 +59,25 @@ export async function saveGeoLayer(layer: GeoLayerRecord): Promise<void> {
   const database = await openDatabase()
   try {
     const transaction = database.transaction(STORE_NAME, 'readwrite')
-    transaction.objectStore(STORE_NAME).put(layer)
-    await completeTransaction(transaction)
+    const store = transaction.objectStore(STORE_NAME)
+    const completion = completeTransaction(transaction)
+    let quotaMessage = ''
+    const existingRequest = store.getAll() as IDBRequest<GeoLayerRecord[]>
+    existingRequest.onsuccess = () => {
+      const existingBytes = (existingRequest.result ?? [])
+        .filter((record) => record.id !== layer.id)
+        .reduce((total, record) => total + (Number.isFinite(record.byteSize) ? record.byteSize : 0), 0)
+      if (existingBytes + layer.byteSize > MAX_TOTAL_GEOJSON_BYTES) {
+        quotaMessage = 'このアプリで保存できるGeoJSONの合計は100 MBまでです。不要なレイヤを削除するか、データを分割してください。'
+        transaction.abort()
+        return
+      }
+      store.put(layer)
+    }
+    await completion.catch((error: unknown) => {
+      if (quotaMessage) throw new Error(quotaMessage)
+      throw error
+    })
     notifyChanged()
   } finally {
     database.close()
