@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Line } from '@react-three/drei'
 import { Object3D, Path, Shape, ShapeGeometry, DoubleSide, type InstancedMesh } from 'three'
 import type { GeoJsonFeature, GeoJsonGeometry, GeoJsonPosition, GeoLayerRecord } from '../data/geojson'
-import { getFeaturePositions } from '../data/geojson'
 
 interface Projection {
   centerLongitude: number
@@ -72,55 +71,38 @@ function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): 
 }
 
 function collectLayerBounds(layers: GeoLayerRecord[]): Bounds | null {
-  let count = 0
-  let latitudeTotal = 0
-  for (const layer of layers) {
-    for (const feature of layer.collection.features) {
-      for (const position of getFeaturePositions(feature)) {
-        count += 1
-        latitudeTotal += position[1]
-      }
-    }
-  }
-  if (count === 0) return null
-  const longitudeScale = Math.cos((latitudeTotal / count) * Math.PI / 180)
+  if (layers.length === 0) return null
+  const centerLatitude = layers.reduce(
+    (sum, layer) => sum + (layer.bounds.south + layer.bounds.north) / 2,
+    0,
+  ) / layers.length
+  const longitudeScale = Math.cos(centerLatitude * Math.PI / 180)
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
   let maxY = -Infinity
   for (const layer of layers) {
-    for (const feature of layer.collection.features) {
-      for (const position of getFeaturePositions(feature)) {
-        const x = position[0] * longitudeScale
-        minX = Math.min(minX, x)
-        maxX = Math.max(maxX, x)
-        minY = Math.min(minY, position[1])
-        maxY = Math.max(maxY, position[1])
-      }
-    }
+    minX = Math.min(minX, layer.bounds.west * longitudeScale)
+    maxX = Math.max(maxX, layer.bounds.east * longitudeScale)
+    minY = Math.min(minY, layer.bounds.south)
+    maxY = Math.max(maxY, layer.bounds.north)
   }
-  return { minX, maxX, minY, maxY }
+  return Number.isFinite(minX) && Number.isFinite(maxX) ? { minX, maxX, minY, maxY } : null
 }
 
 function createProjection(bounds: Bounds, layers: GeoLayerRecord[]): Projection {
-  let latitudeTotal = 0
-  let count = 0
-  for (const layer of layers) {
-    for (const feature of layer.collection.features) {
-      for (const position of getFeaturePositions(feature)) {
-        latitudeTotal += position[1]
-        count += 1
-      }
-    }
-  }
-  const centerLatitude = latitudeTotal / Math.max(1, count)
-  const centerLongitude = (bounds.minX + bounds.maxX) / 2 / Math.max(0.0001, Math.cos(centerLatitude * Math.PI / 180))
+  const centerLatitude = layers.reduce(
+    (sum, layer) => sum + (layer.bounds.south + layer.bounds.north) / 2,
+    0,
+  ) / Math.max(1, layers.length)
+  const longitudeScale = Math.max(0.0001, Math.cos(centerLatitude * Math.PI / 180))
+  const centerLongitude = (bounds.minX + bounds.maxX) / 2 / longitudeScale
   const width = Math.max(0.000001, bounds.maxX - bounds.minX)
   const height = Math.max(0.000001, bounds.maxY - bounds.minY)
   return {
     centerLongitude,
     centerLatitude,
-    longitudeScale: Math.cos(centerLatitude * Math.PI / 180),
+    longitudeScale,
     scale: 15 / Math.max(width, height),
   }
 }
