@@ -84,6 +84,13 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
   const showImportedLayers = visibleGeoLayers.length > 0
 
   useEffect(() => {
+    if (showImportedLayers) {
+      setPlaying(false)
+      setToolMode('navigate')
+    }
+  }, [showImportedLayers, setToolMode])
+
+  useEffect(() => {
     let active = true
     const refresh = async () => {
       try {
@@ -332,6 +339,15 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
                 <span>利用条件</span><strong>{selectedGeoFeature.layer.licenseNote || '未確認'}</strong>
               </div>
               <div className="inspector-warning"><Shield size={14} /><span>GeoJSONは相対縮尺の平面表示です。浸水深・標高・避難安全性の判定には使用できません。</span></div>
+            </>
+          ) : showImportedLayers ? (
+            <>
+              <div className="inspector-meta">
+                <span>表示レイヤ</span><strong>{visibleGeoLayers.length} 件</strong>
+                <span>表示方式</span><strong>相対縮尺・平面</strong>
+                <span>実測標高</span><strong>未接続</strong>
+              </div>
+              <div className="inspector-warning"><Shield size={14} /><span>選択したデータの属性は確認できますが、標高・浸水深・避難安全性の判定は行いません。</span></div>
             </>
           ) : (
             <>
