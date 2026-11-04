@@ -29,7 +29,7 @@ import { demoLayers, DEMO_ONLY_WARNING, type LayerId, type LocalPosition, type S
 import type { ExperimentReport } from '../data/reports'
 import { useAppStore } from '../store'
 import { GEO_LAYERS_CHANGED_EVENT, listGeoLayers } from '../data/geoStore'
-import { GEO_CATEGORY_LABELS, type GeoLayerRecord } from '../data/geojson'
+import { GEO_CATEGORY_LABELS, type GeoJsonFeature, type GeoLayerRecord } from '../data/geojson'
 
 const Scene3D = lazy(() => import('./Scene3D').then(({ Scene3D: scene }) => ({ default: scene })))
 
@@ -78,6 +78,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
   const [playing, setPlaying] = useState(false)
   const [geoLayers, setGeoLayers] = useState<GeoLayerRecord[]>([])
   const [visibleGeoLayerIds, setVisibleGeoLayerIds] = useState<string[] | null>(null)
+  const [selectedGeoFeature, setSelectedGeoFeature] = useState<{ layer: GeoLayerRecord; feature: GeoJsonFeature } | null>(null)
   const knownGeoLayerIds = useRef<Set<string>>(new Set())
   const visibleGeoLayers = geoLayers.filter((layer) => visibleGeoLayerIds?.includes(layer.id))
   const showImportedLayers = visibleGeoLayers.length > 0
@@ -166,6 +167,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
       if (visible) return currentIds.includes(id) ? currentIds : [...currentIds, id]
       return currentIds.filter((currentId) => currentId !== id)
     })
+    if (!visible && selectedGeoFeature?.layer.id === id) setSelectedGeoFeature(null)
   }
 
   return (
@@ -251,12 +253,20 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
                 cameraView={cameraView}
                 geoLayers={visibleGeoLayers}
                 geoLayersVisible={showImportedLayers}
+                onSelectGeoFeature={(layer, feature) => {
+                  setSelectedGeoFeature({ layer, feature })
+                  selectLocation(null)
+                  selectFacility(null)
+                  notify('選択した地物の属性を右パネルに表示しました。')
+                }}
                 onSelectLocation={(location) => {
+                  setSelectedGeoFeature(null)
                   selectLocation(location)
                   notify(`${location.title}を選択しました。詳細は右パネルに表示しています。`)
                 }}
                 onPlace={placeAt}
                 onSelectFacility={(id) => {
+                  setSelectedGeoFeature(null)
                   selectFacility(id)
                   selectLocation(null)
                   notify('仮想防災拠点を選択しました。')
@@ -279,7 +289,9 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
 
         <aside className="sim-panel detail-panel">
           <div className="sim-panel-heading"><span className="section-kicker">INSPECTOR</span><Eye size={15} /></div>
-          {selectedFacility ? (
+          {selectedGeoFeature ? (
+            <GeoFeatureDetails layer={selectedGeoFeature.layer} feature={selectedGeoFeature.feature} />
+          ) : selectedFacility ? (
             <FacilityDetails
               facility={selectedFacility}
               onMove={() => {
