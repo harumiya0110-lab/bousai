@@ -86,12 +86,25 @@ export function DataStudioPage() {
         setCsvTable(table)
         setCsvLongitudeColumn(detected.longitudeColumn)
         setCsvLatitudeColumn(detected.latitudeColumn)
-        setCategory(/382035_evacuation_space|指定緊急避難場所/i.test(file.name) ? 'shelters' : 'other')
-        if (/382035_evacuation_space|指定緊急避難場所/i.test(file.name)) {
+        const isEmergencyPlaceCsv = /382035_evacuation_space|指定緊急避難場所/i.test(file.name)
+        const isDesignatedShelterCsv = /55417|shiteihinanbasyo|指定避難所|指定避難場所/i.test(file.name)
+        const isTsunamiBuildingCsv = /tsunamihinanbiru|津波避難ビル/i.test(file.name)
+        setCategory(isEmergencyPlaceCsv || isDesignatedShelterCsv || isTsunamiBuildingCsv ? 'shelters' : 'other')
+        if (isEmergencyPlaceCsv) {
           setSourceName('宇和島市（危機管理課）')
           setSourceUrl('https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html')
           setDataUpdatedAt('2024-04-01')
-          setLicenseNote('CC BY 4.0')
+          setLicenseNote('CC BY 4.0 / 指定緊急避難場所')
+        } else if (isDesignatedShelterCsv) {
+          setSourceName('宇和島市（危機管理課）')
+          setSourceUrl('https://www.city.uwajima.ehime.jp/site/opendata-catalog/shiteihinanbasyo.html')
+          setDataUpdatedAt('2024-04-01')
+          setLicenseNote('CC BY 4.0 / 指定避難所')
+        } else if (isTsunamiBuildingCsv) {
+          setSourceName('宇和島市（危機管理課）')
+          setSourceUrl('https://www.city.uwajima.ehime.jp/site/opendata-catalog/tsunamihinanbiru.html')
+          setDataUpdatedAt('2024-04-01')
+          setLicenseNote('CC BY 4.0 / 津波避難ビル')
         }
         setNotice('CSVを読み込みました。経度・緯度の列と座標系を確認してください。')
       } else {
@@ -395,7 +408,9 @@ export function DataStudioPage() {
             <a href="https://www.gsi.go.jp/bousaichiri/hinanbasho.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 指定緊急避難場所・避難所 <Link2 size={12} /></a>
             <a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> ハザードマップポータル <Link2 size={12} /></a>
             <a href="https://www.city.uwajima.ehime.jp/uploaded/library/382035_evacuation_space.csv" target="_blank" rel="noreferrer"><FileUp size={14} /> 宇和島市・指定緊急避難場所CSVを取得（2024-04-01 / CC BY 4.0） <Link2 size={12} /></a>
-            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・公式データ説明ページ <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/evacuation-space.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・指定緊急避難場所（CSV） <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/shiteihinanbasyo.html" target="_blank" rel="noreferrer"><MapPin size={14} /> 宇和島市・指定避難所一覧（CSV） <Link2 size={12} /></a>
+            <a href="https://www.city.uwajima.ehime.jp/site/opendata-catalog/tsunamihinanbiru.html" target="_blank" rel="noreferrer"><Waves size={14} /> 宇和島市・津波避難ビル一覧（CSV） <Link2 size={12} /></a>
             <a href="https://www.city.uwajima.ehime.jp/site/gesuido/usuishusshui.html" target="_blank" rel="noreferrer"><ShieldAlert size={14} /> 宇和島市・雨水出水浸水想定区域図 <Link2 size={12} /></a>
           </div>
           <div className="local-storage-note"><Database size={14} /><span>登録したデータはこのブラウザーのIndexedDBに保存されます。各ファイル20 MB、合計100 MBまでです。サーバーへ送信されず、端末・ブラウザー間では共有されません。</span></div>
