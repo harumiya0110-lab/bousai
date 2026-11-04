@@ -72,23 +72,48 @@ function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): 
 }
 
 function collectLayerBounds(layers: GeoLayerRecord[]): Bounds | null {
-  const positions = layers.flatMap((layer) => layer.collection.features.flatMap(getFeaturePositions))
-  if (positions.length === 0) return null
-  const centerLatitude = positions.reduce((sum, position) => sum + position[1], 0) / positions.length
-  const longitudeScale = Math.cos(centerLatitude * Math.PI / 180)
-  const xs = positions.map((position) => position[0] * longitudeScale)
-  const ys = positions.map((position) => position[1])
-  return {
-    minX: Math.min(...xs),
-    maxX: Math.max(...xs),
-    minY: Math.min(...ys),
-    maxY: Math.max(...ys),
+  let count = 0
+  let latitudeTotal = 0
+  for (const layer of layers) {
+    for (const feature of layer.collection.features) {
+      for (const position of getFeaturePositions(feature)) {
+        count += 1
+        latitudeTotal += position[1]
+      }
+    }
   }
+  if (count === 0) return null
+  const longitudeScale = Math.cos((latitudeTotal / count) * Math.PI / 180)
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const layer of layers) {
+    for (const feature of layer.collection.features) {
+      for (const position of getFeaturePositions(feature)) {
+        const x = position[0] * longitudeScale
+        minX = Math.min(minX, x)
+        maxX = Math.max(maxX, x)
+        minY = Math.min(minY, position[1])
+        maxY = Math.max(maxY, position[1])
+      }
+    }
+  }
+  return { minX, maxX, minY, maxY }
 }
 
 function createProjection(bounds: Bounds, layers: GeoLayerRecord[]): Projection {
-  const positions = layers.flatMap((layer) => layer.collection.features.flatMap(getFeaturePositions))
-  const centerLatitude = positions.reduce((sum, position) => sum + position[1], 0) / Math.max(1, positions.length)
+  let latitudeTotal = 0
+  let count = 0
+  for (const layer of layers) {
+    for (const feature of layer.collection.features) {
+      for (const position of getFeaturePositions(feature)) {
+        latitudeTotal += position[1]
+        count += 1
+      }
+    }
+  }
+  const centerLatitude = latitudeTotal / Math.max(1, count)
   const centerLongitude = (bounds.minX + bounds.maxX) / 2 / Math.max(0.0001, Math.cos(centerLatitude * Math.PI / 180))
   const width = Math.max(0.000001, bounds.maxX - bounds.minX)
   const height = Math.max(0.000001, bounds.maxY - bounds.minY)
@@ -190,12 +215,29 @@ function PointInstances({ positions, projection, color }: {
 function GeoLayerVisual({ layer, projection }: { layer: GeoLayerRecord; projection: Projection }) {
   const visual = useMemo(() => {
     const result: GeometryParts = emptyParts()
-    // Rendering is intentionally capped per layer to protect browsers from huge GeoJSON files.
-    for (const feature of layer.collection.features.slice(0, 5000)) {
+    // Keep the data intact in IndexedDB, but bound interactive draw calls and vertex counts.
+    const maxPoints = 8_000
+    const maxLines = 500
+    const maxPolygons = 500
+    const sample = (positions: GeoJsonPosition[], maximum: number) => {
+      if (positions.length <= maximum) return positions
+      const stride = (positions.length - 1) / (maximum - 1)
+      return Array.from({ length: maximum }, (_, index) => positions[Math.round(index * stride)])
+    }
+    for (const feature of layer.collection.features.slice(0, 2500)) {
       const parts = flattenFeature(feature)
-      result.points.push(...parts.points)
-      result.lines.push(...parts.lines)
-      result.polygons.push(...parts.polygons)
+      const remainingPoints = Math.max(0, maxPoints - result.points.length)
+      if (remainingPoints > 0) result.points.push(...parts.points.slice(0, remainingPoints))
+      for (const line of parts.lines) {
+        if (result.lines.length >= maxLines) break
+        if (line.length >= 2) result.lines.push(sample(line, 1200))
+      }
+      for (const polygon of parts.polygons) {
+        if (result.polygons.length >= maxPolygons) break
+        const sampledRings = polygon.map((ring) => sample(ring, 600))
+        if (sampledRings[0]?.length >= 4) result.polygons.push(sampledRings)
+      }
+      if (result.points.length >= maxPoints && result.lines.length >= maxLines && result.polygons.length >= maxPolygons) break
     }
     return result
   }, [layer])
