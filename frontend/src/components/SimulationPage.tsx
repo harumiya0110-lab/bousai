@@ -1,0 +1,337 @@
+import { lazy, Suspense, useEffect, useState } from 'react'
+import {
+  Building2,
+  ChevronDown,
+  Database,
+  CircleHelp,
+  Crosshair,
+  Droplets,
+  Eye,
+  EyeOff,
+  Focus,
+  Home,
+  Layers3,
+  MapPin,
+  Mountain,
+  Move,
+  Pause,
+  Play,
+  Plus,
+  Rotate3D,
+  Route,
+  Save,
+  Shield,
+  Square,
+  Trash2,
+  Waves,
+} from 'lucide-react'
+import { demoLayers, DEMO_ONLY_WARNING, type LayerId, type LocalPosition, type SelectedLocation, type VirtualFacility } from '../data/demo'
+import type { ExperimentReport } from '../data/reports'
+import { useAppStore } from '../store'
+
+const Scene3D = lazy(() => import('./Scene3D').then(({ Scene3D: scene }) => ({ default: scene })))
+
+interface SimulationPageProps {
+  notify: (message: string) => void
+  onSave: (objects: ExperimentReport['virtualObjects']) => boolean
+}
+
+type CameraView = 'overview' | 'oblique' | 'ground'
+
+const layerIcons: Record<LayerId, typeof Mountain> = {
+  terrain: Mountain,
+  buildings: Building2,
+  roads: Route,
+  river: Waves,
+  flood: Droplets,
+  shelters: MapPin,
+  virtual: Crosshair,
+}
+
+const layerColors: Record<LayerId, string> = {
+  terrain: 'mint',
+  buildings: 'slate',
+  roads: 'amber',
+  river: 'cyan',
+  flood: 'blue',
+  shelters: 'green',
+  virtual: 'orange',
+}
+
+export function SimulationPage({ notify, onSave }: SimulationPageProps) {
+  const layers = useAppStore((state) => state.layers)
+  const toggleLayer = useAppStore((state) => state.toggleLayer)
+  const selectedLocation = useAppStore((state) => state.selectedLocation)
+  const selectLocation = useAppStore((state) => state.selectLocation)
+  const facilities = useAppStore((state) => state.facilities)
+  const selectedFacilityId = useAppStore((state) => state.selectedFacilityId)
+  const selectFacility = useAppStore((state) => state.selectFacility)
+  const toolMode = useAppStore((state) => state.toolMode)
+  const setToolMode = useAppStore((state) => state.setToolMode)
+  const addFacility = useAppStore((state) => state.addFacility)
+  const moveFacility = useAppStore((state) => state.moveFacility)
+  const removeSelectedFacility = useAppStore((state) => state.removeSelectedFacility)
+  const [cameraView, setCameraView] = useState<CameraView>('overview')
+  const [floodStep, setFloodStep] = useState(() => useAppStore.getState().layers.flood ? 1 : 0)
+  const [playing, setPlaying] = useState(false)
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setTimeout(() => {
+      if (floodStep >= 3) {
+        setPlaying(false)
+        notify('仮想シナリオの表示が完了しました。実際の浸水時刻を示すものではありません。')
+        return
+      }
+      setFloodStep(floodStep + 1)
+    }, 850)
+    return () => window.clearTimeout(timer)
+  }, [playing, floodStep, notify])
+
+  const placeAt = (position: LocalPosition) => {
+    if (toolMode === 'place') {
+      addFacility(position)
+      notify('仮想・未設置の防災拠点を配置しました。')
+      return
+    }
+    if (toolMode === 'move' && selectedFacilityId) {
+      moveFacility(selectedFacilityId, position)
+      notify('仮想施設の位置を変更しました。')
+      return
+    }
+    const location: SelectedLocation = {
+      title: '仮想地点',
+      position,
+      elevation: null,
+      source: 'B: 仮想シミュレーションデータ',
+      note: '表示用ローカル座標です。実際の地理座標・測量標高ではありません。',
+    }
+    selectLocation(location)
+  }
+
+  const toggleFloodPlayback = () => {
+    if (floodStep >= 3 && !playing) setFloodStep(0)
+    if (!layers.flood) {
+      toggleLayer('flood')
+      notify('教育用の仮想洪水レイヤを表示しました。実際の浸水想定区域ではありません。')
+    }
+    setPlaying((current) => !current)
+  }
+
+  const changeLayer = (id: LayerId) => {
+    toggleLayer(id)
+    notify(`${demoLayers.find((layer) => layer.id === id)?.label ?? id}レイヤの表示を切り替えました。`)
+  }
+
+  const selectedFacility = facilities.find((facility) => facility.id === selectedFacilityId)
+
+  return (
+    <div className="simulation-page page-enter">
+      <div className="sim-header">
+        <div className="sim-title">
+          <div className="eyebrow"><span className="eyebrow-line" /> 仮想シミュレーション</div>
+          <h1>3Dシミュレーション</h1>
+        </div>
+        <div className="sim-header-actions">
+          <label className="region-select">
+            <MapPin size={14} />
+            <span>表示空間</span>
+            <select aria-label="表示空間"><option>DEMO / 仮想エリア</option></select>
+            <ChevronDown size={13} />
+          </label>
+          <span className="data-connected"><span /> 実データ未接続</span>
+        </div>
+      </div>
+
+      <div className="simulation-workspace">
+        <aside className="sim-panel layer-panel">
+          <div className="sim-panel-heading"><span className="section-kicker">SCENE LAYERS</span><Layers3 size={15} /></div>
+          <div className="region-card">
+            <div className="region-card-icon"><Mountain size={17} /></div>
+            <div><strong>仮想デモ空間</strong><small>宇和島市の実測データではありません</small></div>
+          </div>
+          <div className="layer-list-label">表示レイヤ <span>クリックで切替</span></div>
+          <div className="layer-list">
+            {demoLayers.map(({ id, label, detail }) => {
+              const Icon = layerIcons[id]
+              return (
+                <label className={`layer-row ${layers[id] ? 'layer-enabled' : ''}`} key={id}>
+                  <span className={`layer-icon ${layerColors[id]}`}><Icon size={15} /></span>
+                  <span className="layer-copy"><strong>{label}</strong><small>{detail}</small></span>
+                  <input aria-label={`${label}レイヤ`} type="checkbox" checked={layers[id]} onChange={() => changeLayer(id)} />
+                  <span className="toggle-track" aria-hidden="true"><span /></span>
+                </label>
+              )
+            })}
+          </div>
+          <div className="layer-legend">
+            <div className="legend-heading"><span>表示の凡例</span><CircleHelp size={13} /></div>
+            <div><i className="legend-swatch terrain-swatch" />標高色（仮想）</div>
+            <div><i className="legend-swatch flood-swatch" />洪水表示（教育用仮想）</div>
+            <div><i className="legend-swatch shelter-swatch" />仮想避難施設</div>
+          </div>
+          <div className="layer-source-note"><Database size={13} /> 公的データは未取得です</div>
+        </aside>
+
+        <section className="scene-panel" aria-label="3Dシミュレーション">
+          <div className="scene-top-overlay">
+            <span className="scene-demo-badge"><span /> DEMO DATA</span>
+            <span className="scene-coordinate">ローカル座標 / 単位なし</span>
+          </div>
+          <div className="scene-canvas">
+            <Suspense fallback={<div className="scene-loading" role="status"><Mountain size={19} /> 3D地形データを準備しています…</div>}>
+              <Scene3D
+                layers={layers}
+                floodStep={floodStep}
+                facilities={facilities}
+                toolMode={toolMode}
+                selectedFacilityId={selectedFacilityId}
+                cameraView={cameraView}
+                onSelectLocation={(location) => {
+                  selectLocation(location)
+                  notify(`${location.title}を選択しました。詳細は右パネルに表示しています。`)
+                }}
+                onPlace={placeAt}
+                onSelectFacility={(id) => {
+                  selectFacility(id)
+                  selectLocation(null)
+                  notify('仮想防災拠点を選択しました。')
+                }}
+              />
+            </Suspense>
+            <div className="scene-view-controls" role="group" aria-label="カメラ視点">
+              <button type="button" className={cameraView === 'overview' ? 'selected' : ''} title="初期視点へ戻す" onClick={() => setCameraView('overview')}><Home size={15} /><span>ホーム</span></button>
+              <button type="button" className={cameraView === 'oblique' ? 'selected' : ''} title="斜め視点" onClick={() => setCameraView('oblique')}><Rotate3D size={15} /><span>斜め</span></button>
+              <button type="button" className={cameraView === 'ground' ? 'selected' : ''} title="水平視点" onClick={() => setCameraView('ground')}><Focus size={15} /><span>水平</span></button>
+            </div>
+            {toolMode !== 'navigate' && (
+              <div className="scene-tool-hint"><Move size={14} /> {toolMode === 'place' ? '地形をクリックして仮想施設を配置' : '地形をクリックして選択中の施設を移動'}</div>
+            )}
+            <div className="scene-compass" aria-label="北方向"><span>N</span><div className="compass-arrow" /><small>仮想空間</small></div>
+            <div className="scene-scale">地形・建物・道路・施設：仮想データ</div>
+          </div>
+          <div className="scene-help"><span><Move size={13} /> 左ドラッグで回転</span><span><Move size={13} /> 右ドラッグで移動</span><span><Plus size={13} /> ホイールでズーム</span><span className="touch-help">タッチ操作対応</span></div>
+        </section>
+
+        <aside className="sim-panel detail-panel">
+          <div className="sim-panel-heading"><span className="section-kicker">INSPECTOR</span><Eye size={15} /></div>
+          {selectedFacility ? (
+            <FacilityDetails
+              facility={selectedFacility}
+              onMove={() => {
+                setToolMode('move')
+                notify('移動モードです。地形上の移動先をクリックしてください。')
+              }}
+              onDelete={() => {
+                removeSelectedFacility()
+                notify('選択中の仮想施設を削除しました。')
+              }}
+            />
+          ) : selectedLocation ? (
+            <LocationDetails location={selectedLocation} />
+          ) : (
+            <div className="inspector-empty">
+              <span className="inspector-empty-icon"><Crosshair size={19} /></span>
+              <strong>地点を選択</strong>
+              <p>3D空間の地形・建物・仮想施設をクリックすると、デモ上の情報が表示されます。</p>
+              <div className="inspector-tip"><Move size={14} /> 左ドラッグでカメラを回転</div>
+              <div className="inspector-tip"><EyeOff size={14} /> 左のパネルでレイヤ切替</div>
+            </div>
+          )}
+          <div className="inspector-divider" />
+          <div className="inspector-meta">
+            <span>対象地域</span><strong>仮想デモ空間</strong>
+            <span>データ更新</span><strong>公的データなし</strong>
+            <span>座標系</span><strong>表示用ローカル座標</strong>
+          </div>
+          <div className="inspector-warning"><Shield size={14} /><span>実際の地理・標高・災害リスクを示すデータは未接続です。</span></div>
+        </aside>
+      </div>
+
+      <div className="simulation-bottom">
+        <section className="timeline-panel">
+          <div className="timeline-heading">
+            <div><span className="section-kicker">EDUCATIONAL SCENARIO</span><strong>仮想シナリオ</strong></div>
+            <span className="scenario-tag"><Droplets size={13} /> 河川氾濫 / 教育用仮想表示</span>
+          </div>
+          <div className="timeline-controls">
+            <button type="button" className="play-button" aria-label={playing ? '一時停止' : '仮想シナリオを再生'} onClick={toggleFloodPlayback}>{playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}</button>
+            <button type="button" className="step-button" aria-label="シナリオを停止" onClick={() => {
+              setPlaying(false)
+              setFloodStep(0)
+              notify('仮想シナリオの表示を停止しました。')
+            }}><Square size={11} fill="currentColor" /></button>
+            <div className="timeline-range-wrap">
+              <div className="timeline-step-labels"><span>開始</span><span>仮想表示の進行段階 <b>{floodStep} / 3</b></span><span>終了</span></div>
+              <input aria-label="仮想シナリオの段階" type="range" min="0" max="3" step="1" value={floodStep} onChange={(event) => {
+                setFloodStep(Number(event.target.value))
+                if (!layers.flood) toggleLayer('flood')
+              }} />
+            </div>
+          </div>
+          <div className="timeline-notice"><Droplets size={13} /> 洪水区域は仮想表現です。実際の浸水範囲・水位・到達時刻を予測するものではありません。</div>
+        </section>
+
+        <section className="experiment-panel">
+          <div className="experiment-heading"><span className="section-kicker">VIRTUAL EXPERIMENT</span><span className="experiment-count">{facilities.length} 件</span></div>
+          <div className="experiment-actions">
+            <button type="button" className={`button ${toolMode === 'place' ? 'button-active' : 'button-secondary'}`} onClick={() => {
+              const nextMode = toolMode === 'place' ? 'navigate' : 'place'
+              setToolMode(nextMode)
+              notify(nextMode === 'place' ? '配置モードです。地形をクリックして仮想施設を設置してください。' : '配置モードを終了しました。')
+            }}><Crosshair size={14} /> {toolMode === 'place' ? '配置を終了' : '施設を配置'}</button>
+            <button type="button" className="button button-secondary save-experiment" onClick={() => {
+              if (onSave(facilities)) notify('仮想実験を保存しました。レポートからJSONを書き出せます。')
+            }}><Save size={14} /> 実験を保存</button>
+          </div>
+          <p>施設は仮想・未設置です。実際の施設・避難能力を示しません。</p>
+        </section>
+      </div>
+
+      <div className="simulation-caveat"><Shield size={13} /><span>{DEMO_ONLY_WARNING}</span><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">公式情報 <ChevronDown size={12} /></a></div>
+    </div>
+  )
+}
+
+function LocationDetails({ location }: { location: SelectedLocation }) {
+  return (
+    <div className="location-details">
+      <span className="selection-tag"><span /> 仮想地点</span>
+      <h2>{location.title}</h2>
+      <div className="coordinate-readout"><MapPin size={14} /> x {location.position.x.toFixed(2)} / z {location.position.z.toFixed(2)}</div>
+      <div className="detail-data-grid">
+        <div><span>表示用標高</span><strong>{location.elevation === null ? '未取得' : `${location.elevation.toFixed(2)} (仮想値)`}</strong></div>
+        <div><span>浸水想定</span><strong>実データ未取得</strong></div>
+        <div><span>近くの避難場所</span><strong>実データ未取得</strong></div>
+        <div><span>データ分類</span><strong>{location.source}</strong></div>
+      </div>
+      <p className="detail-note">{location.note}</p>
+      <div className="unavailable-block"><CircleHelp size={14} /><span>公的な災害情報・避難施設情報はこの地点に結び付いていません。</span></div>
+    </div>
+  )
+}
+
+function FacilityDetails({ facility, onMove, onDelete }: {
+  facility: VirtualFacility
+  onMove: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="location-details facility-details">
+      <span className="selection-tag virtual-tag"><span /> 仮想・未設置</span>
+      <h2>{facility.name}</h2>
+      <div className="coordinate-readout"><MapPin size={14} /> x {facility.x.toFixed(2)} / z {facility.z.toFixed(2)}</div>
+      <div className="detail-data-grid">
+        <div><span>施設区分</span><strong>仮想防災拠点</strong></div>
+        <div><span>実在確認</span><strong>実在しません</strong></div>
+        <div><span>データ分類</span><strong>B: 仮想データ</strong></div>
+        <div><span>作成日時</span><strong>{new Date(facility.createdAt).toLocaleString('ja-JP')}</strong></div>
+      </div>
+      <div className="facility-actions">
+        <button type="button" className="button button-secondary" onClick={onMove}><Move size={14} /> 移動</button>
+        <button type="button" className="button button-danger" onClick={onDelete}><Trash2 size={14} /> 削除</button>
+      </div>
+      <p className="detail-note">この施設は実在しません。容量・災害対応・避難効果の評価は行っていません。</p>
+    </div>
+  )
+}

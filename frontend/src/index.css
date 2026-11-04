@@ -1,0 +1,67 @@
+:root {
+  font-family: 'DM Sans', 'Noto Sans JP', 'Yu Gothic UI', Meiryo, sans-serif;
+  color: #e7eef6;
+  background: #0b1220;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  --bg: #0b1220;
+  --bg-raised: #101a2a;
+  --panel: #132137;
+  --panel-raised: #182841;
+  --panel-border: rgba(148, 163, 184, 0.13);
+  --text: #e7eef6;
+  --muted: #91a1b5;
+  --muted-soft: #667991;
+  --cyan: #38bdf8;
+  --amber: #f2ad3f;
+  --green: #42cf88;
+  --red: #ef6c6c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 74% -16%, rgba(32, 74, 103, 0.17), transparent 38%),
+    var(--bg);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.26);
+}
