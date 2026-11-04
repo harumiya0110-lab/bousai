@@ -45,6 +45,54 @@ describe('GeoJSON validation', () => {
     }))).toThrow(/座標系/)
   })
 
+
+  it('LineStringに最低2点がない場合は拒否する', () => {
+    expect(() => parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: [[132.5, 33.2]] },
+    }))).toThrow(/LineString/)
+  })
+
+  it('閉じたPolygonのリングを検証する', () => {
+    const result = parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: { name: 'sample area' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[132.5, 33.2], [132.6, 33.2], [132.6, 33.3], [132.5, 33.3], [132.5, 33.2]]],
+      },
+    }))
+    expect(result.geometryCounts.Polygon).toBe(1)
+    expect(result.coordinateCount).toBe(5)
+  })
+
+  it('始点と終点が一致しないPolygonリングは拒否する', () => {
+    expect(() => parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[132.5, 33.2], [132.6, 33.2], [132.6, 33.3], [132.5, 33.3]]],
+      },
+    }))).toThrow(/始点と終点/)
+  })
+
+  it('GeometryCollection内の地物を検証する', () => {
+    const result = parseGeoJsonText(JSON.stringify({
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'GeometryCollection',
+        geometries: [
+          { type: 'Point', coordinates: [132.5, 33.2] },
+          { type: 'LineString', coordinates: [[132.5, 33.2], [132.6, 33.3]] },
+        ],
+      },
+    }))
+    expect(result.coordinateCount).toBe(3)
+  })
+
   it('人間が読みやすいファイルサイズを返す', () => {
     expect(formatByteSize(1536)).toBe('1.5 KB')
     expect(formatByteSize(2 * 1024 * 1024)).toBe('2.0 MB')
