@@ -28,6 +28,8 @@ import {
 import { demoLayers, DEMO_ONLY_WARNING, type LayerId, type LocalPosition, type SelectedLocation, type VirtualFacility } from '../data/demo'
 import type { ExperimentReport } from '../data/reports'
 import { useAppStore } from '../store'
+import { GEO_LAYERS_CHANGED_EVENT, listGeoLayers } from '../data/geoStore'
+import type { GeoLayerRecord } from '../data/geojson'
 
 const Scene3D = lazy(() => import('./Scene3D').then(({ Scene3D: scene }) => ({ default: scene })))
 
@@ -74,6 +76,26 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
   const [cameraView, setCameraView] = useState<CameraView>('overview')
   const [floodStep, setFloodStep] = useState(() => useAppStore.getState().layers.flood ? 1 : 0)
   const [playing, setPlaying] = useState(false)
+  const [geoLayers, setGeoLayers] = useState<GeoLayerRecord[]>([])
+  const [showImportedLayers, setShowImportedLayers] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    const refresh = async () => {
+      try {
+        const records = await listGeoLayers()
+        if (active) setGeoLayers(records)
+      } catch (error) {
+        if (active) notify(error instanceof Error ? '地理データを読み込めませんでした: ' + error.message : '地理データを読み込めませんでした。')
+      }
+    }
+    void refresh()
+    window.addEventListener(GEO_LAYERS_CHANGED_EVENT, refresh)
+    return () => {
+      active = false
+      window.removeEventListener(GEO_LAYERS_CHANGED_EVENT, refresh)
+    }
+  }, [notify])
 
   useEffect(() => {
     if (!playing) return
@@ -139,7 +161,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             <select aria-label="表示空間"><option>DEMO / 仮想エリア</option></select>
             <ChevronDown size={13} />
           </label>
-          <span className="data-connected"><span /> 実データ未接続</span>
+          <span className="data-connected"><span /> {geoLayers.length > 0 ? `GeoJSON ${geoLayers.length} レイヤ` : '実データ未接続'}</span>
         </div>
       </div>
 
@@ -164,6 +186,14 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
               )
             })}
           </div>
+          {geoLayers.length > 0 && (
+            <label className={`layer-row imported-layer-toggle ${showImportedLayers ? 'layer-enabled' : ''}`}>
+              <span className="layer-icon cyan"><Database size={15} /></span>
+              <span className="layer-copy"><strong>読み込んだGeoJSON</strong><small>{geoLayers.length} レイヤ / 相対縮尺の平面表示</small></span>
+              <input aria-label="読み込んだGeoJSONレイヤ" type="checkbox" checked={showImportedLayers} onChange={(event) => setShowImportedLayers(event.target.checked)} />
+              <span className="toggle-track" aria-hidden="true"><span /></span>
+            </label>
+          )}
           <div className="layer-legend">
             <div className="legend-heading"><span>表示の凡例</span><CircleHelp size={13} /></div>
             <div><i className="legend-swatch terrain-swatch" />標高色（仮想）</div>
@@ -175,8 +205,8 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
 
         <section className="scene-panel" aria-label="3Dシミュレーション">
           <div className="scene-top-overlay">
-            <span className="scene-demo-badge"><span /> DEMO DATA</span>
-            <span className="scene-coordinate">ローカル座標 / 単位なし</span>
+            <span className={showImportedLayers && geoLayers.length > 0 ? 'scene-demo-badge imported' : 'scene-demo-badge'}><span /> {showImportedLayers && geoLayers.length > 0 ? 'IMPORTED GEOJSON' : 'DEMO DATA'}</span>
+            <span className="scene-coordinate">{showImportedLayers && geoLayers.length > 0 ? '相対縮尺 / 平面表示' : 'ローカル座標 / 単位なし'}</span>
           </div>
           <div className="scene-canvas">
             <Suspense fallback={<div className="scene-loading" role="status"><Mountain size={19} /> 3D地形データを準備しています…</div>}>
@@ -187,6 +217,8 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
                 toolMode={toolMode}
                 selectedFacilityId={selectedFacilityId}
                 cameraView={cameraView}
+                geoLayers={geoLayers}
+                geoLayersVisible={showImportedLayers}
                 onSelectLocation={(location) => {
                   selectLocation(location)
                   notify(`${location.title}を選択しました。詳細は右パネルに表示しています。`)
@@ -208,7 +240,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
               <div className="scene-tool-hint"><Move size={14} /> {toolMode === 'place' ? '地形をクリックして仮想施設を配置' : '地形をクリックして選択中の施設を移動'}</div>
             )}
             <div className="scene-compass" aria-label="北方向"><span>N</span><div className="compass-arrow" /><small>仮想空間</small></div>
-            <div className="scene-scale">地形・建物・道路・施設：仮想データ</div>
+            <div className="scene-scale">{showImportedLayers && geoLayers.length > 0 ? '読み込み済みGeoJSON / 相対縮尺 / 標高なし' : '地形・建物・道路・施設：仮想データ'}</div>
           </div>
           <div className="scene-help"><span><Move size={13} /> 左ドラッグで回転</span><span><Move size={13} /> 右ドラッグで移動</span><span><Plus size={13} /> ホイールでズーム</span><span className="touch-help">タッチ操作対応</span></div>
         </section>
@@ -288,7 +320,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
         </section>
       </div>
 
-      <div className="simulation-caveat"><Shield size={13} /><span>{DEMO_ONLY_WARNING}</span><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">公式情報 <ChevronDown size={12} /></a></div>
+      <div className="simulation-caveat"><Shield size={13} /><span>{showImportedLayers && geoLayers.length > 0 ? '読み込んだGeoJSONの地物を相対縮尺の平面として表示しています。実測標高へのドレープや災害リスク判定は行いません。出典・利用条件を確認してください。' : DEMO_ONLY_WARNING}</span><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">公式情報 <ChevronDown size={12} /></a></div>
     </div>
   )
 }
