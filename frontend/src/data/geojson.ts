@@ -267,7 +267,7 @@ function normalizeFeature(value: unknown, index: number): GeoJsonFeature {
 export function parseGeoJsonText(text: string): GeoJsonSummary {
   let parsed: unknown
   try {
-    parsed = JSON.parse(text) as unknown
+    parsed = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text) as unknown
   } catch {
     throw new Error('JSONを解析できません。ファイル形式と文字コードを確認してください。')
   }
