@@ -177,6 +177,12 @@ function HomePage({ navigate, openFloodDemo }: { navigate: (page: PageId) => voi
             <span className="quick-description">仮想地形・レイヤ・施設配置を操作</span>
             <span className="quick-action">デモを起動 <ChevronRight size={15} /></span>
           </button>
+          <button className="quick-card" type="button" onClick={() => navigate('data')}>
+            <span className="quick-icon purple"><Database size={18} /></span>
+            <span className="quick-title">地理データ管理</span>
+            <span className="quick-description">GeoJSONを検証して3D空間に読み込む</span>
+            <span className="quick-action">データを追加 <ChevronRight size={15} /></span>
+          </button>
           <button className="quick-card" type="button" onClick={openFloodDemo}>
             <span className="quick-icon amber"><Droplets size={18} /></span>
             <span className="quick-title">洪水ハザードを体験</span>
