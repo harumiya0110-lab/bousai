@@ -4,6 +4,36 @@ import {
   type GeoJsonFeature,
 } from './geojson'
 
+
+export type CsvEncoding = 'UTF-8' | 'Shift_JIS'
+
+export interface DecodedCsv {
+  text: string
+  encoding: CsvEncoding
+}
+
+/**
+ * Detect UTF-8 strictly, then fall back to Shift_JIS (Windows-31J mapping
+ * in modern browsers) for Japanese municipal open-data CSV files.
+ */
+export function decodeCsvBytes(buffer: ArrayBuffer): DecodedCsv {
+  try {
+    return {
+      text: new TextDecoder('utf-8', { fatal: true }).decode(buffer),
+      encoding: 'UTF-8',
+    }
+  } catch {
+    try {
+      return {
+        text: new TextDecoder('shift_jis', { fatal: true }).decode(buffer),
+        encoding: 'Shift_JIS',
+      }
+    } catch {
+      throw new Error('CSVの文字コードを判定できません。UTF-8またはShift_JIS形式で保存し直してください。')
+    }
+  }
+}
+
 export interface CsvTable {
   headers: string[]
   rows: string[][]
