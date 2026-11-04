@@ -87,8 +87,11 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
     if (showImportedLayers) {
       setPlaying(false)
       setToolMode('navigate')
+      selectLocation(null)
+      selectFacility(null)
+      setSelectedGeoFeature(null)
     }
-  }, [showImportedLayers, setToolMode])
+  }, [showImportedLayers, setToolMode, selectLocation, selectFacility])
 
   useEffect(() => {
     let active = true
@@ -189,7 +192,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
           <label className="region-select">
             <MapPin size={14} />
             <span>表示空間</span>
-            <select aria-label="表示空間"><option>DEMO / 仮想エリア</option></select>
+            <select aria-label="表示空間">{showImportedLayers ? <option>IMPORTED / 取込データ</option> : <option>DEMO / 仮想エリア</option>}</select>
             <ChevronDown size={13} />
           </label>
           <span className="data-connected"><span /> {geoLayers.length > 0 ? `GeoJSON ${geoLayers.length} レイヤ` : '実データ未接続'}</span>
@@ -201,7 +204,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
           <div className="sim-panel-heading"><span className="section-kicker">SCENE LAYERS</span><Layers3 size={15} /></div>
           <div className="region-card">
             <div className="region-card-icon"><Mountain size={17} /></div>
-            <div><strong>仮想デモ空間</strong><small>宇和島市の実測データではありません</small></div>
+            <div><strong>{showImportedLayers ? 'インポートデータ' : '仮想デモ空間'}</strong><small>{showImportedLayers ? 'ユーザーが読み込んだ地理データ' : '宇和島市の実測データではありません'}</small></div>
           </div>
           <div className="layer-list-label">仮想デモレイヤ <span>クリックで切替</span></div>
           <div className="layer-list">
