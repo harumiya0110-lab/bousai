@@ -77,7 +77,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isPosition(value: unknown): value is number[] {
+function isPosition(value: unknown): value is GeoJsonPosition {
   return Array.isArray(value)
     && value.length >= 2
     && typeof value[0] === 'number'
@@ -106,9 +106,26 @@ function collectPositions(value: unknown, output: GeoJsonPosition[]): void {
   for (const child of value) collectPositions(child, output)
 }
 
+function requirePositionArray(value: unknown, minimum: number, label: string): GeoJsonPosition[] {
+  if (!Array.isArray(value) || value.length < minimum || !value.every(isPosition)) {
+    throw new Error(label + 'の座標配列が不正です。')
+  }
+  return value
+}
+
+function requireLinearRing(value: unknown, label: string): GeoJsonPosition[] {
+  const ring = requirePositionArray(value, 4, label)
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    throw new Error(label + 'の始点と終点が一致していません。')
+  }
+  return ring
+}
+
 function collectGeometryPositions(geometry: GeoJsonGeometry, output: GeoJsonPosition[]): void {
   if (!GEOMETRY_TYPES.has(geometry.type)) {
-    throw new Error(`未対応のジオメトリ形式です: ${geometry.type || '不明'}`)
+    throw new Error(\`未対応のジオメトリ形式です: \${geometry.type || '不明'}\`)
   }
   if (geometry.type === 'GeometryCollection') {
     if (!Array.isArray(geometry.geometries)) {
@@ -122,9 +139,56 @@ function collectGeometryPositions(geometry: GeoJsonGeometry, output: GeoJsonPosi
     }
     return
   }
-  collectPositions(geometry.coordinates, output)
-}
 
+  const coordinates = geometry.coordinates
+  if (geometry.type === 'Point') {
+    if (!isPosition(coordinates)) throw new Error('Pointの座標が不正です。')
+    collectPositions(coordinates, output)
+    return
+  }
+  if (geometry.type === 'MultiPoint') {
+    if (!Array.isArray(coordinates) || !coordinates.every(isPosition)) {
+      throw new Error('MultiPointの座標配列が不正です。')
+    }
+    collectPositions(coordinates, output)
+    return
+  }
+  if (geometry.type === 'LineString') {
+    collectPositions(requirePositionArray(coordinates, 2, 'LineString'), output)
+    return
+  }
+  if (geometry.type === 'MultiLineString') {
+    if (!Array.isArray(coordinates) || coordinates.length === 0) {
+      throw new Error('MultiLineStringの座標配列が不正です。')
+    }
+    for (const line of coordinates) {
+      collectPositions(requirePositionArray(line, 2, 'MultiLineString'), output)
+    }
+    return
+  }
+  if (geometry.type === 'Polygon') {
+    if (!Array.isArray(coordinates) || coordinates.length === 0) {
+      throw new Error('Polygonのリングがありません。')
+    }
+    for (const [index, ring] of coordinates.entries()) {
+      collectPositions(requireLinearRing(ring, 'Polygon ring ' + index), output)
+    }
+    return
+  }
+  if (geometry.type === 'MultiPolygon') {
+    if (!Array.isArray(coordinates) || coordinates.length === 0) {
+      throw new Error('MultiPolygonのポリゴンがありません。')
+    }
+    for (const [polygonIndex, polygon] of coordinates.entries()) {
+      if (!Array.isArray(polygon) || polygon.length === 0) {
+        throw new Error('MultiPolygon内にリングがありません。')
+      }
+      for (const [ringIndex, ring] of polygon.entries()) {
+        collectPositions(requireLinearRing(ring, 'MultiPolygon ' + polygonIndex + ' ring ' + ringIndex), output)
+      }
+    }
+  }
+}
 function normalizeInput(input: unknown): GeoJsonFeatureCollection {
   if (!isRecord(input) || typeof input.type !== 'string') {
     throw new Error('GeoJSONのtypeが見つかりません。')
@@ -177,9 +241,10 @@ function normalizeFeature(value: unknown, index: number): GeoJsonFeature {
     throw new Error(`features[${index}] がGeoJSON Featureではありません。`)
   }
   const rawProperties = value.properties
-  const properties = rawProperties === null || rawProperties === undefined
-    ? null
-    : isRecord(rawProperties) ? rawProperties : null
+  if (rawProperties !== null && rawProperties !== undefined && !isRecord(rawProperties)) {
+    throw new Error(`features[${index}] のpropertiesはオブジェクトまたはnullである必要があります。`)
+  }
+  const properties = rawProperties === null || rawProperties === undefined ? null : rawProperties
   const geometry = value.geometry === null || value.geometry === undefined
     ? null
     : isRecord(value.geometry) && typeof value.geometry.type === 'string'
