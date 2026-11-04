@@ -14,7 +14,7 @@ import {
   type VirtualFacility,
 } from '../data/demo'
 import type { ToolMode } from '../store'
-import type { GeoLayerRecord } from '../data/geojson'
+import type { GeoJsonFeature, GeoLayerRecord } from '../data/geojson'
 import { GeoLayers3D } from './GeoLayers3D'
 
 type CameraView = 'overview' | 'oblique' | 'ground'
@@ -31,6 +31,7 @@ interface Scene3DProps {
   onSelectFacility: (id: string) => void
   geoLayers: GeoLayerRecord[]
   geoLayersVisible: boolean
+  onSelectGeoFeature: (layer: GeoLayerRecord, feature: GeoJsonFeature) => void
 }
 
 const buildingLocations = createDemoBuildings()
@@ -52,7 +53,7 @@ export function Scene3D(props: Scene3DProps) {
       <directionalLight position={[-10, 9, -8]} intensity={0.75} color="#7abbd1" />
       <CameraRig cameraView={props.cameraView} />
       {showImportedLayers ? (
-        <GeoLayers3D layers={props.geoLayers} />
+        <GeoLayers3D layers={props.geoLayers} onSelectFeature={props.onSelectGeoFeature} />
       ) : (
         <>
           <gridHelper args={[24, 24, '#4d6574', '#2a3c4c']} position={[0, 0.1, 0]} />
