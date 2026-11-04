@@ -58,45 +58,44 @@ function isPosition(value: unknown): value is GeoJsonPosition {
     && typeof value[1] === 'number'
 }
 
-const MAX_FEATURE_RENDER_POINTS = 8_000
-const MAX_FEATURE_RENDER_LINES = 500
-const MAX_FEATURE_RENDER_POLYGONS = 500
-
-function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts): void {
+function collectParts(geometry: GeoJsonGeometry | null, result: GeometryParts, limits: { points: number; lines: number; polygons: number }): void {
   if (!geometry) return
   if (geometry.type === 'GeometryCollection') {
-    for (const child of geometry.geometries ?? []) collectParts(child, result)
+    for (const child of geometry.geometries ?? []) {
+      if (result.points.length >= limits.points && result.lines.length >= limits.lines && result.polygons.length >= limits.polygons) break
+      collectParts(child, result, limits)
+    }
     return
   }
 
   const coordinates = geometry.coordinates
   if (geometry.type === 'Point') {
-    if (isPosition(coordinates) && result.points.length < MAX_FEATURE_RENDER_POINTS) result.points.push(coordinates)
+    if (isPosition(coordinates) && result.points.length < limits.points) result.points.push(coordinates)
   } else if (geometry.type === 'MultiPoint') {
     if (Array.isArray(coordinates)) {
       for (const position of coordinates) {
-        if (result.points.length >= MAX_FEATURE_RENDER_POINTS) break
+        if (result.points.length >= limits.points) break
         if (isPosition(position)) result.points.push(position)
       }
     }
   } else if (geometry.type === 'LineString') {
-    if (result.lines.length < MAX_FEATURE_RENDER_LINES && Array.isArray(coordinates) && coordinates.every(isPosition)) result.lines.push(coordinates)
+    if (result.lines.length < limits.lines && Array.isArray(coordinates) && coordinates.every(isPosition)) result.lines.push(coordinates)
   } else if (geometry.type === 'MultiLineString') {
     if (Array.isArray(coordinates)) {
       for (const line of coordinates) {
-        if (result.lines.length >= MAX_FEATURE_RENDER_LINES) break
+        if (result.lines.length >= limits.lines) break
         if (Array.isArray(line) && line.every(isPosition)) result.lines.push(line)
       }
     }
   } else if (geometry.type === 'Polygon') {
-    if (result.polygons.length < MAX_FEATURE_RENDER_POLYGONS && Array.isArray(coordinates)) {
+    if (result.polygons.length < limits.polygons && Array.isArray(coordinates)) {
       const rings = coordinates.filter((ring): ring is GeoJsonPosition[] => Array.isArray(ring) && ring.every(isPosition))
       if (rings.length > 0) result.polygons.push(rings)
     }
   } else if (geometry.type === 'MultiPolygon') {
     if (Array.isArray(coordinates)) {
       for (const polygon of coordinates) {
-        if (result.polygons.length >= MAX_FEATURE_RENDER_POLYGONS) break
+        if (result.polygons.length >= limits.polygons) break
         if (!Array.isArray(polygon)) continue
         const rings = polygon.filter((ring): ring is GeoJsonPosition[] => Array.isArray(ring) && ring.every(isPosition))
         if (rings.length > 0) result.polygons.push(rings)
@@ -156,9 +155,9 @@ const CATEGORY_COLORS: Record<GeoLayerRecord['category'], string> = {
   other: '#a9a0f5',
 }
 
-function flattenFeature(feature: GeoJsonFeature): GeometryParts {
+function flattenFeature(feature: GeoJsonFeature, limits: { points: number; lines: number; polygons: number }): GeometryParts {
   const result = emptyParts()
-  collectParts(feature.geometry, result)
+  collectParts(feature.geometry, result, limits)
   return result
 }
 
@@ -264,21 +263,21 @@ function GeoLayerVisual({ layer, projection, onSelectFeature }: {
       return Array.from({ length: maximum }, (_, index) => positions[Math.round(index * stride)])
     }
     for (const feature of layer.collection.features.slice(0, 2500)) {
-      const parts = flattenFeature(feature)
-      for (const position of parts.points) {
-        if (result.points.length >= maxPoints) break
-        result.points.push({ position, feature })
+      const remaining = {
+        points: maxPoints - result.points.length,
+        lines: maxLines - result.lines.length,
+        polygons: maxPolygons - result.polygons.length,
       }
+      if (remaining.points <= 0 && remaining.lines <= 0 && remaining.polygons <= 0) break
+      const parts = flattenFeature(feature, remaining)
+      for (const position of parts.points) result.points.push({ position, feature })
       for (const line of parts.lines) {
-        if (result.lines.length >= maxLines) break
         if (line.length >= 2) result.lines.push({ positions: sample(line, 1200), feature })
       }
       for (const polygon of parts.polygons) {
-        if (result.polygons.length >= maxPolygons) break
         const sampledRings = polygon.map((ring) => sample(ring, 600))
         if (sampledRings[0]?.length >= 4) result.polygons.push({ rings: sampledRings, feature })
       }
-      if (result.points.length >= maxPoints && result.lines.length >= maxLines && result.polygons.length >= maxPolygons) break
     }
     return result
   }, [layer])
