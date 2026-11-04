@@ -55,6 +55,8 @@ export function DataStudioPage() {
     setCsvTable(null)
     setCsvCrsReviewed(false)
     setCsvSkippedRows(0)
+    setCsvLongitudeColumn('')
+    setCsvLatitudeColumn('')
     setCsvEncoding('UTF-8')
     setSourceName('')
     setSourceUrl('')
@@ -406,7 +408,7 @@ export function DataStudioPage() {
           <button type="button" className="text-button" onClick={() => void refreshLayers()}><RefreshCw size={13} /> 再読み込み</button>
         </div>
         {layers.length === 0 ? (
-          <div className="empty-data-state"><Database size={23} /><strong>まだ地理データが登録されていません</strong><span>GeoJSONを読み込むと、ここで管理して3Dシミュレーションに表示できます。</span></div>
+          <div className="empty-data-state"><Database size={23} /><strong>まだ地理データが登録されていません</strong><span>GeoJSONまたは座標付きCSVを読み込むと、ここで管理して3Dシミュレーションに表示できます。</span></div>
         ) : (
           <div className="registered-layer-list">
             {layers.map((layer) => (
