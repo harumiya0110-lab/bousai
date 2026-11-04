@@ -327,7 +327,7 @@ export function formatByteSize(bytes: number): string {
 
 export const GEO_CATEGORY_LABELS: Record<GeoLayerCategory, string> = {
   flood: '洪水・浸水想定',
-  shelters: '避難場所・避難所',
+  shelters: '避難関連施設',
   roads: '道路',
   buildings: '建物',
   other: 'その他',
