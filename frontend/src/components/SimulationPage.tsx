@@ -192,7 +192,7 @@ export function SimulationPage({ notify, onSave }: SimulationPageProps) {
             <div className="region-card-icon"><Mountain size={17} /></div>
             <div><strong>仮想デモ空間</strong><small>宇和島市の実測データではありません</small></div>
           </div>
-          <div className="layer-list-label">表示レイヤ <span>クリックで切替</span></div>
+          <div className="layer-list-label">仮想デモレイヤ <span>クリックで切替</span></div>
           <div className="layer-list">
             {demoLayers.map(({ id, label, detail }) => {
               const Icon = layerIcons[id]
